@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#153c32" />
+    <meta name="description" content="INARIの感情と動きを試すローカルデモ。植物や畑の小さな変化に寄り添う、白狐の見守り精霊。" />
+    <title>INARI Emotion Console</title>
+    <link rel="stylesheet" href="../styles.css" />
+    <script type="module" src="../src/app.js?v=8"></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="brand-lockup" aria-label="INARI Emotion Console">
+          <span class="brand-mark" aria-hidden="true">✦</span>
+          <span>INARI <small>EMOTION CONSOLE</small></span>
+        </div>
+        <nav class="mode-nav" aria-label="表示モード">
+          <a href="../emotion-console/" aria-current="page">Emotion Console</a>
+          <a href="../emotion-choice/">Emotion Choice</a>
+        </nav>
+        <span class="local-badge"><span class="live-dot" aria-hidden="true"></span> WEB PREVIEW</span>
+      </header>
+
+      <main>
+        <div class="intro">
+          <p class="eyebrow">EMOTION CONSOLE / MANUAL PREVIEW</p>
+          <h1>小さな変化に、<br /><em>気づいてくれる相棒。</em></h1>
+          <p class="intro-copy">10の感情を選んで、表情・首の角度・揺れる速さ・止まる時間を比べるデモです。各ボタンを押すとすぐに再生します。</p>
+        </div>
+
+        <div class="demo-grid">
+          <section class="stage-card" aria-labelledby="stage-title">
+            <div class="stage-topline">
+              <span id="stage-title">INARI / EMOTION PREVIEW</span>
+              <span class="stage-count" id="frameCount">FRAME 01 / 06</span>
+            </div>
+            <div class="stage-scene">
+              <div class="horizon horizon-back" aria-hidden="true"></div>
+              <div class="horizon horizon-front" aria-hidden="true"></div>
+              <div class="sprite-anchor">
+                <div id="sprite" class="sprite" role="img" aria-label="INARIが見守っています">
+                  <div class="sprite-body" aria-hidden="true"></div>
+
+                </div>
+              </div>
+              <span class="ground-line" aria-hidden="true"></span>
+            </div>
+            <div class="stage-info">
+              <div>
+                <p class="stage-label">CURRENT EMOTION</p>
+                <h2><span id="emotionName">NEUTRAL</span><span id="emotionNameJa" class="emotion-ja">見守る</span></h2>
+                <p id="emotionDescription" class="emotion-description">少し遠くを見つめ、ときどき瞬きをする。</p>
+              </div>
+              <button id="motionToggle" class="motion-toggle" type="button" aria-pressed="false">一時停止</button>
+            </div>
+          </section>
+
+          <div class="control-column">
+            <section class="control-card emotion-controls" aria-labelledby="direct-title">
+              <div class="section-heading">
+                <span class="section-index">01 / EMOTION LIBRARY</span>
+                <h2 id="direct-title">10の感情を比べる</h2>
+                <p>同じ感情をもう一度押すと、最初から再生します。</p>
+              </div>
+              <div id="directButtons" class="direct-buttons" role="group" aria-label="10種類の感情を選択"></div>
+              <div class="sequence-controls">
+                <button id="previousEmotion" type="button" class="sequence-button">← 前へ</button>
+                <span id="sequencePosition" aria-live="polite">01 / 10</span>
+                <button id="nextEmotion" type="button" class="sequence-button">次へ →</button>
+              </div>
+            </section>
+
+            <section class="control-card playback-card" aria-labelledby="playback-title">
+              <div class="section-heading">
+                <span class="section-index">02 / PLAYBACK</span>
+                <h2 id="playback-title">再生について</h2>
+                <p id="playbackGuide">NEUTRALは、静かな動きを繰り返します。</p>
+              </div>
+              <button id="replayEmotion" type="button" class="replay-button">最初から再生</button>
+            </section>
+          </div>
+        </div>
+
+        <section class="decision-strip" aria-labelledby="decision-title">
+          <div>
+            <span class="section-index">MOTION NOTES</span>
+            <h2 id="decision-title">動きの設計</h2>
+          </div>
+          <dl class="motion-specs" aria-live="polite">
+            <div><dt>FACE</dt><dd id="specFace">穏やかな通常の目</dd></div>
+            <div><dt>MOTION</dt><dd id="specMotion">静止を中心に、瞬きと遠くを見る小さな仕草</dd></div>
+            <div><dt>SPEED</dt><dd id="specSpeed">very slow</dd></div>
+            <div><dt>PLAYBACK</dt><dd id="specPlayback">loop</dd></div>
+          </dl>
+          <p class="prototype-note">正面向きのINARIを全身ごと描き直した10種類の画像を使っています。顔の後貼りはしていません。</p>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <span>INARI — 作物をいっしょに育てる、静かな白狐の相棒。</span>
+        <span>10 emotion studies · redrawn full-character artwork</span>
+      </footer>
+    </div>
+  </body>
+</html>
