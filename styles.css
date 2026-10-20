@@ -230,6 +230,9 @@ main { padding-top: 22px; }
   .decision-strip { padding: 19px 17px; }
 }
 
+/* Keep the preview stage compact when the control column grows taller. */
+.demo-grid { align-items: start; }
+
 /* Character comparison keeps the same motion player and stage dimensions. */
 .character-card .section-heading h2 { font-size: 21px; }
 .character-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 17px 0 0; padding: 0; border: 0; }
