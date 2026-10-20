@@ -29,12 +29,16 @@
     <rect x="105" y="163" width="187" height="150" fill="#68736b"/>
     <rect x="111" y="169" width="175" height="138" fill="#202521"/>
     <rect x="118" y="176" width="160" height="124" fill="#fffdfa"/>
-    <rect x="150" y="214" width="6" height="6" fill="#d4ccc2"/>
-    <rect x="156" y="214" width="6" height="6" fill="#d4ccc2"/>
+    <rect x="174" y="208" width="6" height="6" fill="#754831"/>
+    <rect x="180" y="208" width="6" height="6" fill="#754831"/>
+    <rect x="216" y="208" width="6" height="6" fill="#754831"/>
+    <rect x="222" y="208" width="6" height="6" fill="#754831"/>
+    <rect x="162" y="214" width="6" height="6" fill="#d4ccc2"/>
+    <rect x="168" y="214" width="6" height="6" fill="#d4ccc2"/>
+    <rect x="228" y="214" width="6" height="6" fill="#d4ccc2"/>
     <rect x="234" y="214" width="6" height="6" fill="#d4ccc2"/>
-    <rect x="240" y="214" width="6" height="6" fill="#d4ccc2"/>
-    <rect x="162" y="220" width="6" height="6" fill="#d4ccc2"/>
-    <rect x="234" y="220" width="6" height="6" fill="#d4ccc2"/>
+    <rect x="156" y="220" width="6" height="6" fill="#d4ccc2"/>
+    <rect x="240" y="220" width="6" height="6" fill="#d4ccc2"/>
     <rect x="162" y="232" width="6" height="6" fill="#342820"/>
     <rect x="168" y="232" width="6" height="6" fill="#342820"/>
     <rect x="174" y="232" width="6" height="6" fill="#342820"/>
@@ -71,11 +75,12 @@
     <rect x="222" y="256" width="6" height="6" fill="#754831"/>
     <rect x="228" y="256" width="6" height="6" fill="#754831"/>
     <rect x="234" y="256" width="6" height="6" fill="#754831"/>
-    <rect x="186" y="262" width="6" height="6" fill="#342820"/>
     <rect x="192" y="262" width="6" height="6" fill="#342820"/>
     <rect x="198" y="262" width="6" height="6" fill="#342820"/>
-    <rect x="180" y="268" width="6" height="6" fill="#342820"/>
+    <rect x="186" y="268" width="6" height="6" fill="#342820"/>
     <rect x="204" y="268" width="6" height="6" fill="#342820"/>
+    <rect x="180" y="274" width="6" height="6" fill="#342820"/>
+    <rect x="210" y="274" width="6" height="6" fill="#342820"/>
     <rect x="105" y="163" width="187" height="150" fill="none" stroke="#525c55" stroke-width="6"/>
 
     <!-- Red apron is the inherited INARI accent, below the display. -->
