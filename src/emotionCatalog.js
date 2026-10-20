@@ -21,7 +21,7 @@ export const CHARACTER_STYLES = Object.freeze({
 });
 
 export const STACKCHAN_ARTWORK_FILES = Object.freeze(
-  Object.fromEntries(Object.keys(ARTWORK_FILES).map((name) => [name, `../assets/stackchan-emotions/${name}.svg?v=2`])),
+  Object.fromEntries(Object.keys(ARTWORK_FILES).map((name) => [name, `../assets/stackchan-emotions/${name}.svg?v=3`])),
 );
 
 export function getArtworkFile(style, artwork) {
@@ -64,7 +64,7 @@ export const EMOTIONS = Object.freeze({
     ],
   },
   HAPPY: {
-    label: "よろこぶ", face: "いつもの丸い目を少し見開き、瞬きする笑顔", motion: "左右に揺れながら2回瞬きして正面へ", speed: "medium", playback: "once",
+    label: "よろこぶ", face: "いつもの目を少し見開き、瞬きする笑顔", motion: "左右に揺れながら2回瞬きして正面へ", speed: "medium", playback: "once",
     description: "いつもの目を明るく見開いて水やりを喜び、左右に揺れながら瞬きする。",
     steps: [
       step(300, [0, 0, 0], "HAPPY_OPEN"),
