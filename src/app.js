@@ -1,6 +1,6 @@
-import { EMOTION_ORDER, getEmotion } from "./emotionCatalog.js?v=10";
-import { EmotionPlayer } from "./emotionPlayer.js?v=10";
-import { mountCharacterSwitch } from "./characterSwitch.js?v=10";
+import { EMOTION_ORDER, getEmotion } from "./emotionCatalog.js?v=11";
+import { EmotionPlayer } from "./emotionPlayer.js?v=11";
+import { mountCharacterSwitch } from "./characterSwitch.js?v=11";
 
 const sprite = document.getElementById("sprite");
 const frameCount = document.getElementById("frameCount");

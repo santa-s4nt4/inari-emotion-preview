@@ -21,7 +21,7 @@ export const CHARACTER_STYLES = Object.freeze({
 });
 
 export const STACKCHAN_ARTWORK_FILES = Object.freeze(
-  Object.fromEntries(Object.keys(ARTWORK_FILES).map((name) => [name, `../assets/stackchan-emotions/${name}.svg`])),
+  Object.fromEntries(Object.keys(ARTWORK_FILES).map((name) => [name, `../assets/stackchan-emotions/${name}.svg?v=2`])),
 );
 
 export function getArtworkFile(style, artwork) {
