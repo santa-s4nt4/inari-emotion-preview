@@ -1,4 +1,4 @@
-import { CHARACTER_STYLES } from "./emotionCatalog.js?v=14";
+import { CHARACTER_STYLES } from "./emotionCatalog.js?v=15";
 
 const STORAGE_KEY = "inari-character-style";
 
