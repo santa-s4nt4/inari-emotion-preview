@@ -21,7 +21,7 @@ export const CHARACTER_STYLES = Object.freeze({
 });
 
 export const STACKCHAN_ARTWORK_FILES = Object.freeze(
-  Object.fromEntries(Object.keys(ARTWORK_FILES).map((name) => [name, `../assets/stackchan-emotions/${name}.svg?v=4`])),
+  Object.fromEntries(Object.keys(ARTWORK_FILES).map((name) => [name, `../assets/stackchan-emotions/${name}.svg?v=5`])),
 );
 
 export function getArtworkFile(style, artwork) {
@@ -81,7 +81,7 @@ export const EMOTIONS = Object.freeze({
     steps: [step(230), step(270, [-17, -2, -5]), step(270, [17, -2, 5]), step(270, [-17, -2, -5]), step(270, [17, -2, 5]), step(800)],
   },
   CONCERN: {
-    label: "心配", face: "不安げな眉と下がった口", motion: "下を向いて首を傾け、そのまま見守る", speed: "slow", playback: "loop",
+    label: "心配", face: "ハの字眉と汗、開いた口", motion: "下を向いて首を傾け、そのまま見守る", speed: "slow", playback: "loop",
     description: "水が足りるか、静かに気にかける。",
     steps: [step(650), step(950, [-1, 4, -3]), step(2600, [-1, 4, -3]), step(1800, [-1, 3, -2])],
   },

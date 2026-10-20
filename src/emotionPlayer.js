@@ -1,4 +1,4 @@
-import { CHARACTER_STYLES, getArtworkFile, getEmotion } from "./emotionCatalog.js?v=13";
+import { CHARACTER_STYLES, getArtworkFile, getEmotion } from "./emotionCatalog.js?v=14";
 
 export class EmotionPlayer {
   constructor(spriteElement, onFrame = () => {}, onComplete = () => {}, { loopPreview = true, visualStyle = "stackchan" } = {}) {
