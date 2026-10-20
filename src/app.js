@@ -1,5 +1,6 @@
-import { EMOTION_ORDER, getEmotion } from "./emotionCatalog.js?v=8";
-import { EmotionPlayer } from "./emotionPlayer.js?v=8";
+import { EMOTION_ORDER, getEmotion } from "./emotionCatalog.js?v=10";
+import { EmotionPlayer } from "./emotionPlayer.js?v=10";
+import { mountCharacterSwitch } from "./characterSwitch.js?v=10";
 
 const sprite = document.getElementById("sprite");
 const frameCount = document.getElementById("frameCount");
@@ -10,6 +11,7 @@ let selectedName = "NEUTRAL";
 const player = new EmotionPlayer(sprite, (frame, total) => {
   frameCount.textContent = `FRAME ${String(frame).padStart(2, "0")} / ${String(total).padStart(2, "0")}`;
 });
+mountCharacterSwitch(player);
 
 for (const name of EMOTION_ORDER) {
   const config = getEmotion(name);

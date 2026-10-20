@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#153c32" />
-    <meta name="description" content="INARIの感情と動きを試すローカルデモ。植物や畑の小さな変化に寄り添う、白狐の見守り精霊。" />
+    <meta name="description" content="INARIの感情と動きを、Stack-chan版と現行の白狐版で比較するデモ。" />
     <title>INARI Emotion Console</title>
-    <link rel="stylesheet" href="../styles.css?v=9" />
-    <script type="module" src="../src/app.js?v=8"></script>
+    <link rel="stylesheet" href="../styles.css?v=10" />
+    <script type="module" src="../src/app.js?v=10"></script>
   </head>
   <body>
     <div class="page-shell">
@@ -54,6 +54,19 @@
           </section>
 
           <div class="control-column">
+            <section class="control-card character-card" aria-labelledby="character-title">
+              <div class="section-heading">
+                <span class="section-index">00 / CHARACTER DEBUG</span>
+                <h2 id="character-title">キャラクターを切り替える</h2>
+                <p>同じ感情と動きのまま、形状を比べられます。</p>
+              </div>
+              <fieldset class="character-switch" aria-label="INARIのデザインを選択">
+                <legend class="sr-only">INARIのデザイン</legend>
+                <label><input type="radio" name="characterStyle" value="stackchan" checked /><span>狐の被せ物をつけたStack-chan <small>新デザイン</small></span></label>
+                <label><input type="radio" name="characterStyle" value="original" /><span>白狐INARI <small>現行デザイン</small></span></label>
+              </fieldset>
+            </section>
+
             <section class="control-card emotion-controls" aria-labelledby="direct-title">
               <div class="section-heading">
                 <span class="section-index">01 / EMOTION LIBRARY</span>
@@ -94,8 +107,8 @@
       </main>
 
       <footer class="site-footer">
-        <span>INARI — 作物をいっしょに育てる、静かな白狐の相棒。</span>
-        <span>10 emotion studies · redrawn full-character artwork</span>
+        <span>INARI — 作物をいっしょに育てる、静かな相棒。</span>
+        <span>10 emotions · 2 character designs</span>
       </footer>
     </div>
   </body>

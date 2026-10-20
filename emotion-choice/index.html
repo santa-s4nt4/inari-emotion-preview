@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#153c32" />
     <meta name="description" content="状況テキストからJevがINARIの感情を選ぶローカル検証画面。" />
     <title>INARI Emotion Choice</title>
-    <link rel="stylesheet" href="../styles.css?v=9" />
-    <script type="module" src="../src/choiceApp.js?v=1"></script>
+    <link rel="stylesheet" href="../styles.css?v=10" />
+    <script type="module" src="../src/choiceApp.js?v=10"></script>
   </head>
   <body>
     <div class="page-shell">
@@ -71,6 +71,19 @@
               </div>
             </section>
 
+            <section class="control-card character-card" aria-labelledby="character-title">
+              <div class="section-heading">
+                <span class="section-index">CHARACTER DEBUG</span>
+                <h2 id="character-title">キャラクターを切り替える</h2>
+                <p>Jevの判定や動きはそのままに、見た目を比較できます。</p>
+              </div>
+              <fieldset class="character-switch" aria-label="INARIのデザインを選択">
+                <legend class="sr-only">INARIのデザイン</legend>
+                <label><input type="radio" name="characterStyle" value="stackchan" checked /><span>狐の被せ物をつけたStack-chan <small>新デザイン</small></span></label>
+                <label><input type="radio" name="characterStyle" value="original" /><span>白狐INARI <small>現行デザイン</small></span></label>
+              </fieldset>
+            </section>
+
             <details class="control-card debug-panel" id="debugPanel">
               <summary>Debug Panel <span>Choiceの判定値を見る</span></summary>
               <dl class="debug-metrics">
@@ -88,7 +101,7 @@
       </main>
 
       <footer class="site-footer">
-        <span>INARI — 作物をいっしょに育てる、静かな白狐の相棒。</span>
+        <span>INARI — 作物をいっしょに育てる、静かな相棒。</span>
         <span>Jev classification is available in the local app</span>
       </footer>
     </div>

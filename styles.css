@@ -229,3 +229,18 @@ main { padding-top: 22px; }
   .direct-button { min-height: 57px; padding: 8px 10px; }
   .decision-strip { padding: 19px 17px; }
 }
+
+/* Character comparison keeps the same motion player and stage dimensions. */
+.character-card .section-heading h2 { font-size: 21px; }
+.character-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 17px 0 0; padding: 0; border: 0; }
+.character-switch label { position: relative; display: block; min-width: 0; cursor: pointer; }
+.character-switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.character-switch span { display: flex; flex-direction: column; justify-content: center; min-height: 62px; padding: 10px 12px; border: 2px solid #89968a; background: #f4f6ee; color: #26382d; font-size: 12px; line-height: 1.35; font-weight: 800; }
+.character-switch small { margin-top: 4px; color: #6a7a6c; font-size: 10px; font-weight: 700; }
+.character-switch input:checked + span { border-color: #a92f27; background: #fbe8df; box-shadow: inset 5px 0 0 #b73b30; }
+.character-switch input:focus-visible + span { outline: 3px solid #b73b30; outline-offset: 3px; }
+.character-switch label:hover span { border-color: #a92f27; }
+@media (max-width: 640px) {
+  .character-switch { grid-template-columns: 1fr; }
+  .character-switch span { min-height: 50px; }
+}

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="INARI Stack-chan CONCERN">
+  <title>INARI Stack-chan — CONCERN</title>
+  <g shape-rendering="crispEdges">
+    <!-- Small robot feet and costume tail, behind the body. -->
+    <ellipse cx="201" cy="360" rx="117" ry="14" fill="#162820" opacity=".22"/>
+    <path d="M 293 252 L 326 242 L 351 259 L 337 275 L 309 274 Z" fill="#e7e9df" stroke="#55635c" stroke-width="6"/>
+    <path d="M 329 247 L 351 259 L 337 275 L 326 269 Z" fill="#fffefa"/>
+    <rect x="111" y="332" width="49" height="24" fill="#343b36"/>
+    <rect x="240" y="332" width="49" height="24" fill="#343b36"/>
+    <rect x="120" y="337" width="32" height="10" fill="#768079"/>
+    <rect x="248" y="337" width="32" height="10" fill="#768079"/>
+
+    <!-- Cubic Stack-chan body; the ears belong to the removable fox hood. -->
+    <path d="M 88 137 L 288 137 L 320 154 L 320 325 L 293 347 L 88 347 L 69 329 L 69 159 Z" fill="#d9ddd7" stroke="#505b55" stroke-width="7"/>
+    <path d="M 288 137 L 320 154 L 320 325 L 293 347 L 288 328 Z" fill="#aeb8b1"/>
+    <path d="M 76 148 L 91 134 L 288 134 L 288 336 L 91 336 L 76 324 Z" fill="#f8faf3"/>
+    <path d="M 76 148 L 91 134 L 91 336 L 76 324 Z" fill="#d9e0d7"/>
+    <path d="M 79 148 L 106 137 L 287 137" fill="none" stroke="#ffffff" stroke-width="6"/>
+
+    <!-- Fox hood: short triangular ears, a clean white cap, red inner cloth. -->
+    <path d="M 103 138 L 125 82 L 146 79 L 168 112 L 232 112 L 254 79 L 275 82 L 297 138 L 287 158 L 99 158 Z" fill="#f9faf5" stroke="#66726a" stroke-width="7" stroke-linejoin="miter"/>
+    <path d="M 124 116 L 138 93 L 153 119 Z M 247 119 L 262 93 L 276 116 Z" fill="#c34e45"/>
+    <path d="M 105 132 L 125 115 L 275 115 L 298 132 L 289 157 L 110 157 Z" fill="#ffffff"/>
+    <path d="M 112 146 L 289 146" stroke="#cbd5cc" stroke-width="5"/>
+    <rect x="103" y="145" width="14" height="34" fill="#e4e8df"/>
+    <rect x="281" y="145" width="14" height="34" fill="#d8ded8"/>
+
+    <!-- Screen is the face. The shell does not have animal eyes or a muzzle. -->
+    <rect x="105" y="163" width="187" height="150" fill="#68736b"/>
+    <rect x="111" y="169" width="175" height="138" fill="#101b17"/>
+    <rect x="118" y="176" width="160" height="124" fill="#111f19"/>
+    <rect x="119" y="177" width="159" height="11" fill="#1b3024"/>
+    <path d="M 152 218 H 168 V 222 H 172 V 238 H 168 V 243 H 152 V 239 H 148 V 223 H 152 Z" fill="#9fe887"/>
+<rect x="154" y="230" width="15" height="9" fill="#518d5a"/>
+<rect x="152" y="223" width="6" height="7" fill="#e0ffd0"/>
+<path d="M 232 218 H 248 V 222 H 252 V 238 H 248 V 243 H 232 V 239 H 228 V 223 H 232 Z" fill="#9fe887"/>
+<rect x="234" y="230" width="15" height="9" fill="#518d5a"/>
+<rect x="232" y="223" width="6" height="7" fill="#e0ffd0"/>
+<path d="M 143 206 L 175 201 M 225 201 L 257 206" stroke="#518d5a" stroke-width="5" stroke-linecap="square"/>
+<path d="M 194 253 H 206 L 200 259 Z" fill="#9fe887"/>
+<path d="M 191 278 L 198 273 H 202 L 209 278" fill="none" stroke="#9fe887" stroke-width="4" stroke-linecap="square"/>
+    <rect x="105" y="163" width="187" height="150" fill="none" stroke="#525c55" stroke-width="6"/>
+
+    <!-- Red apron is the inherited INARI accent, below the display. -->
+    <path d="M 151 313 L 249 313 L 235 335 L 200 352 L 165 335 Z" fill="#b52f2a"/>
+    <path d="M 159 315 L 241 315 L 232 326 L 200 341 L 168 326 Z" fill="#df5548"/>
+    <path d="M 173 320 L 200 336 L 227 320" fill="none" stroke="#f68972" stroke-width="3"/>
+    <rect x="89" y="314" width="12" height="12" fill="#d5dfd4"/>
+    <rect x="295" y="314" width="13" height="12" fill="#929e96"/>
+  </g>
+</svg>

@@ -1,12 +1,14 @@
-import { ARTWORK_FILES, getEmotion } from "./emotionCatalog.js?v=8";
+import { CHARACTER_STYLES, getArtworkFile, getEmotion } from "./emotionCatalog.js?v=10";
 
 export class EmotionPlayer {
-  constructor(spriteElement, onFrame = () => {}, onComplete = () => {}, { loopPreview = true } = {}) {
+  constructor(spriteElement, onFrame = () => {}, onComplete = () => {}, { loopPreview = true, visualStyle = "stackchan" } = {}) {
     this.sprite = spriteElement;
     this.body = spriteElement.querySelector?.(".sprite-body") ?? spriteElement;
     this.onFrame = onFrame;
     this.onComplete = onComplete;
     this.loopPreview = loopPreview;
+    if (!Object.hasOwn(CHARACTER_STYLES, visualStyle)) throw new RangeError("Unknown INARI character style: " + visualStyle);
+    this.visualStyle = visualStyle;
     this.timer = null;
     this.emotion = null;
     this.frameIndex = 0;
@@ -30,6 +32,12 @@ export class EmotionPlayer {
   }
 
   play(name) { this.playEmotion(name); }
+
+  setVisualStyle(style) {
+    if (!Object.hasOwn(CHARACTER_STYLES, style)) throw new RangeError("Unknown INARI character style: " + style);
+    this.visualStyle = style;
+    this.render();
+  }
 
   setPaused(paused) {
     this.paused = paused;
@@ -61,7 +69,7 @@ export class EmotionPlayer {
     const artwork = current.artwork ?? this.emotion;
     const width = this.sprite.clientWidth;
     const height = this.sprite.clientHeight || width;
-    this.body.style.backgroundImage = `url("${new URL(ARTWORK_FILES[artwork], import.meta.url).href}")`;
+    this.body.style.backgroundImage = `url("${new URL(getArtworkFile(this.visualStyle, artwork), import.meta.url).href}")`;
     this.body.style.backgroundSize = `${width}px ${height}px`;
     this.body.style.backgroundPosition = "center";
     const [x, y, angle, scaleX = 1, scaleY = 1] = this.reducedMotion.matches
@@ -72,7 +80,8 @@ export class EmotionPlayer {
     this.sprite.style.transform = `translate(${x * poseScale}px, ${y * poseScale}px) rotate(${angle}deg) scale(${scaleX}, ${scaleY})`;
     this.sprite.dataset.emotion = this.emotion;
     this.sprite.dataset.artwork = artwork;
-    this.sprite.setAttribute("aria-label", `INARI: ${this.emotion}、${config.label}`);
+    this.sprite.dataset.characterStyle = this.visualStyle;
+    this.sprite.setAttribute("aria-label", `INARI ${CHARACTER_STYLES[this.visualStyle]}: ${this.emotion}、${config.label}`);
     this.onFrame(index + 1, config.steps.length);
   }
 

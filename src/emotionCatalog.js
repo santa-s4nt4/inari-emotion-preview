@@ -15,6 +15,22 @@ export const ARTWORK_FILES = Object.freeze({
   HAPPY_OPEN: "../assets/emotions/HAPPY_OPEN.png",
 });
 
+export const CHARACTER_STYLES = Object.freeze({
+  stackchan: "狐の被せ物をつけたStack-chan",
+  original: "現行の白狐INARI",
+});
+
+export const STACKCHAN_ARTWORK_FILES = Object.freeze(
+  Object.fromEntries(Object.keys(ARTWORK_FILES).map((name) => [name, `../assets/stackchan-emotions/${name}.svg`])),
+);
+
+export function getArtworkFile(style, artwork) {
+  if (!Object.hasOwn(CHARACTER_STYLES, style)) throw new RangeError("Unknown INARI character style: " + style);
+  const file = style === "stackchan" ? STACKCHAN_ARTWORK_FILES[artwork] : ARTWORK_FILES[artwork];
+  if (!file) throw new RangeError("Unknown INARI artwork: " + artwork);
+  return file;
+}
+
 export const EMOTIONS = Object.freeze({
   NEUTRAL: {
     label: "見守る", face: "正面を向いた穏やかな目", motion: "静止を中心に、ときどき瞬きと小さな視線の間", speed: "very slow", playback: "loop",
@@ -48,7 +64,7 @@ export const EMOTIONS = Object.freeze({
     ],
   },
   HAPPY: {
-    label: "よろこぶ", face: "いつもの茶色い目を少し見開き、瞬きする笑顔", motion: "左右に揺れながら2回瞬きして正面へ", speed: "medium", playback: "once",
+    label: "よろこぶ", face: "いつもの丸い目を少し見開き、瞬きする笑顔", motion: "左右に揺れながら2回瞬きして正面へ", speed: "medium", playback: "once",
     description: "いつもの目を明るく見開いて水やりを喜び、左右に揺れながら瞬きする。",
     steps: [
       step(300, [0, 0, 0], "HAPPY_OPEN"),
