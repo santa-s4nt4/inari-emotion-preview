@@ -1,0 +1,48 @@
+#audioStudio {
+  display: grid;
+  gap: 1rem;
+}
+
+.audio-studio-header h2 { margin: 0; }
+.audio-studio-header p { margin: .45rem 0 0; color: #53605b; line-height: 1.55; }
+.audio-studio-controls { display: grid; gap: .9rem; }
+.audio-studio-controls label:not(.audio-file-drop) { display: grid; gap: .35rem; font-weight: 700; }
+.audio-studio-controls select,
+.audio-studio-controls input[type="number"] {
+  min-height: 42px;
+  border: 1px solid #abb4ad;
+  border-radius: 0;
+  background: #fff;
+  color: #1b3029;
+  padding: .45rem .7rem;
+  font: inherit;
+}
+.audio-file-drop {
+  display: grid;
+  place-items: center;
+  min-height: 80px;
+  border: 2px dashed #9daaa0;
+  background: #f6f8f3;
+  color: #264237;
+  text-align: center;
+  padding: .8rem;
+  cursor: pointer;
+}
+.audio-file-drop.dragging,
+.audio-file-drop:hover { border-color: #a64135; background: #fff6f2; }
+.audio-file-drop input { width: 100%; margin-top: .55rem; font: inherit; }
+.audio-asset-info,
+.audio-feedback { margin: 0; line-height: 1.5; color: #4b6057; overflow-wrap: anywhere; }
+.audio-feedback:empty { display: none; }
+.audio-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.audio-actions button {
+  border: 1px solid #929d94;
+  background: #fff;
+  color: #1b3029;
+  padding: .55rem .9rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.audio-actions button:hover { border-color: #a64135; }
+.audio-actions button:disabled { cursor: default; opacity: .45; }

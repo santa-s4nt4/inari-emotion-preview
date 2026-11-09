@@ -1,0 +1,42 @@
+.workspace-layout{display:grid;grid-template-columns:minmax(250px,18vw) minmax(560px,1fr) minmax(300px,22vw);align-items:start;gap:14px;max-width:none;width:100%;padding:16px 20px 36px}
+.tool-dock,.face-canvas-panel,.face-inspector{min-width:0}
+.tool-dock,.face-inspector{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;background:#fffdf8;border:2px solid #34433a;box-shadow:5px 5px 0 #d1d5ca}
+.tool-dock .block{border:0;box-shadow:none;padding:18px}
+.tool-dock .block-heading h1,.tool-dock .block-heading h2{font-size:20px}
+.tool-dock .block-heading p{font-size:11px}
+.tool-panel[hidden]{display:none}
+.workspace-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:#9daa9d;border-bottom:1px solid #9daa9d}
+.workspace-tabs button{border:0;background:#f2f5ee;padding:12px 6px;color:#536256;font-size:12px;font-weight:900}
+.workspace-tabs button[aria-selected=true]{background:#bd4035;color:#fff}
+.tool-dock .emotion-buttons{grid-template-columns:1fr}
+.tool-dock .emotion-buttons button{padding:9px}
+.tool-dock .axis-fields{grid-template-columns:1fr}
+.tool-dock .editor-table{font-size:10px}
+.tool-dock .editor-table input,.tool-dock .editor-table select{min-width:55px}
+.face-canvas-panel{background:#fffdf8;border:2px solid #34433a;box-shadow:5px 5px 0 #d1d5ca;padding:22px 25px}
+.face-canvas-panel .block-heading span{font-size:10px}
+.face-canvas-panel .block-heading h2{font-size:27px}
+.face-canvas-panel .face-animation-stage{min-height:340px;display:grid;place-items:center;padding:24px;background:#e7ece4}
+.face-canvas-panel .face-animation-stage .face-screen-wrap{max-width:none;width:min(100%,720px);margin:0 auto}
+.face-canvas-panel .face-animation-stage .face-status{margin:7px 0 0}
+.face-canvas-panel .face-animation-timeline{max-height:340px}
+.face-canvas-panel .face-animation-timeline input{width:78px;max-width:100%;min-width:0}
+.face-canvas-panel .face-animation-timeline td{white-space:nowrap}
+.face-canvas-panel .timeline-warning{color:#b23424;font-weight:900;background:#fff0e8}
+.face-canvas-panel .timeline-ok{color:#416b54}
+.tool-dock .editor-table-wrap,.tool-dock #addStep,.tool-dock #resetEmotion{display:none}
+.face-inspector{padding:18px}
+.inspector-title{border-bottom:1px solid #d7e0d6;margin-bottom:15px}
+.inspector-title span{font-size:10px;letter-spacing:.16em;color:#ac3d32;font-weight:900}
+.inspector-title h2{font-size:20px;margin:6px 0}
+.inspector-title p{font-size:11px;color:#6f7a70;line-height:1.5}
+.face-inspector .face-controls{grid-template-columns:1fr}
+.face-inspector .face-control{grid-template-columns:minmax(0,1fr) 105px}
+.face-inspector .face-copy{display:grid}
+.face-inspector .face-export-actions button{flex:1}
+.face-inspector #uploadAll{background:#bd4035;color:#fff;border-color:#bd4035}
+.face-inspector #uploadAll:disabled{opacity:.5}
+.preview-panel .panel-top{cursor:move;touch-action:none;user-select:none}
+@media(max-width:1250px){.workspace-layout{grid-template-columns:240px minmax(400px,1fr) 290px;padding:12px;gap:10px}.face-canvas-panel{padding:15px}}
+@media(max-width:1020px){.workspace-layout{grid-template-columns:210px minmax(0,1fr)}.face-inspector{grid-column:2;position:static;max-height:none}.tool-dock{grid-row:1 / span 2}}
+@media(max-width:700px){.workspace-layout{display:flex;flex-direction:column}.tool-dock,.face-inspector{position:static;max-height:none;width:100%}.face-canvas-panel{width:100%;padding:12px}.face-canvas-panel .face-animation-stage{min-height:230px;padding:10px}.tool-dock .emotion-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}}

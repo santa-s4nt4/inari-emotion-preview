@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f4f1e9" />
+  <meta name="description" content="INARI Stack-chanの表情・首の動き・音を編集し、実機で確認するスタジオ。" />
+  <title>INARI / Stack-chan Motion Studio</title>
+  <link rel="stylesheet" href="../stackchan-preview.css?v=1" />
+  <link rel="stylesheet" href="../stackchan-editor.css?v=1" />
+  <link rel="stylesheet" href="../stackchan-face-studio.css?v=1" />
+  <link rel="stylesheet" href="../stackchan-face-animation.css?v=1" />
+  <link rel="stylesheet" href="../stackchan-audio-studio.css?v=1" />
+  <link rel="stylesheet" href="../stackchan-workspace.css?v=1" />
+  <script type="importmap">{"imports":{"three":"../assets/stackchan3d/vendor/three.module.js","three/addons/loaders/GLTFLoader.js":"../assets/stackchan3d/vendor/loaders/GLTFLoader.js","three/addons/controls/OrbitControls.js":"../assets/stackchan3d/vendor/controls/OrbitControls.js"}}</script>
+  <script type="module" src="../src/stackchanPreview.js?v=2"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../emotion-console/"><span class="brand-icon">✳</span> INARI <small>STACK-CHAN MOTION STUDIO</small></a>
+    <nav aria-label="画面">
+      <a href="../emotion-console/">EMOTION CONSOLE</a>
+      <a href="../emotion-choice/">EMOTION CHOICE</a>
+      <a href="../stackchan-preview/" aria-current="page">MOTION STUDIO</a>
+    </nav>
+    <button id="previewToggle" type="button" aria-expanded="true">3Dを隠す</button>
+  </header>
+
+  <main class="layout workspace-layout">
+    <section class="preview-panel" aria-label="Stack-chan 3Dプレビュー">
+      <div class="panel-top"><span>3D / LIVE PREVIEW</span><span id="profileState" class="profile-state">仮のサーボ範囲</span><button id="previewClose" type="button" aria-label="3Dプレビューを隠す">×</button></div>
+      <div class="scene" id="scene" aria-label="ドラッグで見る角度を変えられる3D Stack-chan">
+        <canvas id="sceneCanvas" class="scene-canvas" role="img" aria-label="K151 Stack-chanの3Dモデル。白い外装、立体の狐耳と背面の尻尾"></canvas>
+        <p id="sceneLoading" class="scene-loading" role="status">Stack-chanの3Dモデルを読み込み中…</p>
+        <div class="scene-hint">ドラッグで回転 <span>·</span> ホイールで拡大縮小 <span>·</span> K151形状データを使用</div>
+      </div>
+      <div class="telemetry">
+        <div><span>EMOTION</span><strong id="currentEmotion">NEUTRAL</strong></div>
+        <div><span>YAW / 左右</span><strong id="yawReadout">0.0°</strong></div>
+        <div><span>PITCH / 上下</span><strong id="pitchReadout">30.0°</strong></div>
+        <div><span>STEP</span><strong id="stepReadout">01 / 06</strong></div>
+      </div>
+      <div class="transport"><button id="replayButton" type="button">↺ 最初から</button><button id="pauseButton" type="button">Ⅱ 一時停止</button><button id="speakToggle" type="button" aria-pressed="false">口パク</button><span id="motionStatus" role="status">再生中</span></div>
+    </section>
+    <aside class="tool-dock" aria-label="機能タブ">
+      <nav class="workspace-tabs" aria-label="編集する項目">
+        <button type="button" data-tool-tab="emotion" aria-selected="true">感情</button>
+        <button type="button" data-tool-tab="motion" aria-selected="false">首の動き</button>
+        <button type="button" data-tool-tab="jev" aria-selected="false">Jev判定</button>
+        <button type="button" data-tool-tab="profile" aria-selected="false">モーター</button>
+      </nav>
+      <section class="block tool-panel" data-tool-panel="emotion">
+        <div class="block-heading"><span>EMOTION</span><h1>表情と首の動き</h1><p>実機のINARIタイムラインに合わせて10種類を確認します。</p></div>
+        <div id="emotionButtons" class="emotion-buttons" role="group" aria-label="感情を選択"></div>
+      </section><section class="block editor-block tool-panel" data-tool-panel="motion" hidden>
+        <div class="block-heading"><span>MOTION EDITOR</span><h2>首の動き</h2><p>中央の共通タイムラインで顔と首の角度を同時に編集します。到達時間も各コマに表示します。</p></div>
+        <div class="editor-table-wrap"><table class="editor-table"><thead><tr><th>STEP</th><th>時間 ms</th><th>左右 °</th><th>上下 °</th><th>表情</th><th></th></tr></thead><tbody id="editorRows"></tbody></table></div>
+        <div class="editor-actions"><button id="addStep" type="button">＋ ステップ</button><button id="resetEmotion" type="button">元に戻す</button><button id="exportDraft" type="button">JSONを書き出す</button></div>
+        <p class="editor-note">選択中の感情だけをJSONに書き出します。実機に適用する前に、実測のサーボ範囲と動きを確認してください。</p>
+      </section><section class="block tool-panel" data-tool-panel="jev" hidden>
+        <div class="block-heading"><span>JEV CHOICE</span><h2>状況から選ぶ</h2><p>判定だけ既存のサーバー側Jevを使用します。選んだ感情で同じプレビューを再生します。</p></div>
+        <form id="jevForm"><label for="situation">状況テキスト</label><textarea id="situation" disabled rows="3" maxlength="2000" placeholder="例：土が少し乾いてきている" required></textarea><button id="jevSubmit" disabled type="submit">Jevでemotionを選ぶ →</button></form>
+        <p id="jevStatus" class="jev-status" role="status">GitHub PagesではJev判定を利用できません。ローカル版でお試しください。</p>
+        <details id="jevDebug"><summary>Jev判定の詳細</summary><div class="debug-result"><span>SELECTED</span><b id="selectedEmotion">—</b><span>CONFIDENCE</span><b id="confidence">—</b></div><div id="probabilities" class="probabilities"></div></details>
+      </section><section class="block calibration tool-panel" data-tool-panel="profile" hidden>
+        <div class="block-heading"><span>MOTOR PROFILE</span><h2>実機の可動範囲</h2><p>サーボから読み出した上下限とゼロ位置を入れると、実機の安全クランプを再計算します。</p></div>
+        <form id="profileForm">
+          <div class="axis-fields"><fieldset><legend>YAW / 左右</legend><label>最小 raw<input name="yawMin" type="number" min="0" max="1023" value="0"></label><label>ゼロ raw<input name="yawZero" type="number" min="0" max="1000" value="460"></label><label>最大 raw<input name="yawMax" type="number" min="0" max="1023" value="1023"></label></fieldset><fieldset><legend>PITCH / 上下</legend><label>最小 raw<input name="pitchMin" type="number" min="0" max="1023" value="0"></label><label>ゼロ raw<input name="pitchZero" type="number" min="0" max="1000" value="620"></label><label>最大 raw<input name="pitchMax" type="number" min="0" max="1023" value="1023"></label></fieldset></div>
+          <label class="checkbox"><input name="measured" type="checkbox"> 上下限を実機から読み取った</label>
+          <button type="submit">可動範囲を適用</button>
+        </form>
+        <p id="rangeReadout" class="range-readout"></p><p id="motorEvidence" class="range-readout" role="status">実機未接続。到達時間はファームウェアの設定速度からの概算です。</p><p id="profileError" class="profile-error" role="alert"></p>
+        <p class="profile-note">角度制限 ±60° / 10–35°、raw可動域の90%、到着補正用8 rawの余裕を適用。実測の遅れ・負荷・バックラッシュはプレビューに含まれません。</p>
+      </section>
+    </aside>
+    <section class="face-canvas-panel" aria-label="顔キャンバス">
+        <div class="block-heading"><span>FACE ANIMATION</span><h2>顔の動きをつくる</h2><p>部品を選んで画面上で動かし、感情ごとのコマへ記録します。基本顔はプリセットから選べます。</p></div>
+        <label class="face-preset-label" for="faceAnimationPlayback">再生方法<select id="faceAnimationPlayback"><option value="loop">ループ</option><option value="once">1回再生して最後の顔を保持</option></select></label>
+        <div id="facePartTools" class="face-part-tools" role="group" aria-label="編集する顔の部品"><button type="button" data-part="leftEye">左目</button><button type="button" data-part="bothEyes">両目</button><button type="button" data-part="rightEye">右目</button><button type="button" data-part="leftBrow">左眉</button><button type="button" data-part="rightBrow">右眉</button><button type="button" data-part="mouth">口</button><button type="button" data-part="sweat">汗</button></div>
+        <div class="face-animation-stage">
+          <div class="face-screen-wrap"><canvas id="faceAnimationPreview" width="320" height="240" role="img" aria-label="再生中または編集中の顔アニメーション"></canvas><canvas id="faceSelectionOverlay" width="320" height="240" aria-label="顔の部品をドラッグして移動"></canvas><div class="face-safe-guide" aria-hidden="true"><span>デバッグ表示の境界 y=182</span></div></div>
+          <p id="faceAnimationStatus" class="face-status" role="status"></p>
+        </div>
+        <div class="face-animation-timeline"><table><thead><tr><th>コマ</th><th>顔と首の時間 ms</th><th>左右 °</th><th>上下 °</th><th>到達</th><th>選択・順序</th></tr></thead><tbody id="faceAnimationRows"></tbody></table></div>
+        <div class="face-actions"><button id="faceAnimationAdd" type="button">＋ コマを追加</button><button id="faceAnimationDuplicate" type="button">選択コマを複製</button><button id="faceAnimationDelete" type="button">選択コマを削除</button></div>
+</section>
+    <aside class="face-inspector" aria-label="顔パーツ設定">
+      <div class="inspector-title"><span>PROPERTIES</span><h2>顔パーツの設定</h2><p>選択した部品を調整し、コマへ記録します。</p></div>
+              <div class="face-animation-edit-heading">選択コマの顔パーツ</div>
+        <div id="faceBrowToggle" class="face-part-tools" role="group" aria-label="眉毛の表示範囲"><button type="button" data-brow="none">眉なし</button><button type="button" data-brow="left">左だけ</button><button type="button" data-brow="right">右だけ</button><button type="button" data-brow="both">両方</button></div>
+        <div id="faceAnimationControls" class="face-controls"></div>
+        <div class="face-copy"><label for="faceAnimationBase">基本顔からコピー<select id="faceAnimationBase"></select></label><button id="faceAnimationCopyBase" type="button">選択コマへコピー</button></div>
+        <div class="face-actions"><button id="faceUndo" type="button">↶ Undo</button><button id="faceRedo" type="button">↷ Redo</button><button id="faceAnimationReplay" type="button">最初から再生</button><button id="faceAnimationFollow" type="button">再生中の顔へ戻す</button><button id="faceAnimationReset" type="button">この感情を初期化</button><button id="faceAnimationImport" type="button">顔だけのデータを読み込む</button><input id="faceAnimationFile" type="file" accept="application/json,.json" hidden></div>
+        <div class="face-actions face-export-actions"><button id="importDesignBundle" type="button">全感情のJSONを読み込む</button><input id="importDesignFile" type="file" accept="application/json,.json" hidden><button id="exportDesignBundle" type="button">全感情をJSONで書き出す</button><button id="uploadAll" disabled title="ローカル版で利用できます" type="button">全感情を実機へ書き込む</button></div><p id="faceStatus" class="face-status" role="status"></p><div id="audioStudio"></div>
+        <p id="faceAnimationFeedback" class="face-status" role="status"></p>
+        <p class="face-note">「編集」でコマを固定して調整できます。基本顔の変更を使うときは「選択コマへコピー」を押してください。最初から再生すると3Dの首と顔を一緒に確認できます。編集内容はこのブラウザに保存され、実機用セットへ含まれます。</p>
+        <div class="live-serial"><h3>USBリアルタイム確認</h3><p>接続したStack-chanを識別してから、編集中の顔と首角度を送ります。5秒通信が止まると実機は通常動作へ戻ります。</p><div class="face-actions"><button id="serialConnect" type="button">USB接続</button><button id="serialStart" type="button" disabled>実機でプレビュー</button><button id="serialStop" type="button" disabled>終了</button><button id="serialDisconnect" type="button" disabled>USB切断</button></div><p id="serialStatus" role="status">未接続</p></div>
+
+    </aside>
+  </main>
+</body>
+</html>
