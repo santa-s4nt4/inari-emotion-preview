@@ -1,4 +1,4 @@
-import { EMOTION_ORDER } from "./emotionCatalog.js";
+import { DEVICE_EMOTION_ORDER as EMOTION_ORDER } from "./emotionCatalog.js";
 import { validatePreset, upgradePreset } from "./stackchanFaceData.js";
 
 export const FACE_ANIMATION_FORMAT = "inari-stackchan-face-animations-v1";

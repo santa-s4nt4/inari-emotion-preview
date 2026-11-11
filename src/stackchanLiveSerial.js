@@ -2,7 +2,7 @@ const PREFIX="INARI_LIVE_V1 ";
 const ACK="INARI_LIVE_ACK ";
 const $=(id)=>document.getElementById(id);
 
-export function createLiveSerial(getFrame,onProfile=()=>{}) {
+export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
   let port=null, reader=null, writer=null, connected=false, active=false, buffer="", lastSent=0, sending=false, uploadBusy=false;
   let profileSupported=false,profileRetry=false,lastProfileAt=0;
   const pending=new Map();
@@ -129,7 +129,11 @@ export function createLiveSerial(getFrame,onProfile=()=>{}) {
         try {await request("end");} catch { /* The next begin checks readiness again. */ }
         await new Promise((resolve)=>setTimeout(resolve,700));
       }
-      active=true;lastSent=0;buttons();status(reply.neckReady===false
+      // A long-running browser preview may have reached its 30-second neck
+      // safety stop while the user was choosing a USB port. Begin a fresh
+      // episode when the device actually accepts live preview.
+      onStart();
+      active=true;lastSent=0;lastProfileAt=0;buttons();status(reply.neckReady===false
         ? "実機プレビュー中。首サーボは利用できず、顔のみ反映します。"
         : "実機プレビュー中。顔と首を最大5回/秒で送信します。");
     }

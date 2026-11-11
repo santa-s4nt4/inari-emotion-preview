@@ -1,4 +1,4 @@
-import { CHARACTER_STYLES, getArtworkFile, getEmotion } from "./emotionCatalog.js?v=16";
+import { CHARACTER_STYLES, getArtworkFile, getEmotion, resolveEmotion } from "./emotionCatalog.js?v=17";
 
 export class EmotionPlayer {
   constructor(spriteElement, onFrame = () => {}, onComplete = () => {}, { loopPreview = true, visualStyle = "stackchan" } = {}) {
@@ -20,7 +20,8 @@ export class EmotionPlayer {
     this.reducedMotion.addEventListener?.("change", () => this.playEmotion(this.emotion ?? "NEUTRAL"));
   }
 
-  playEmotion(name) {
+  playEmotion(requestedName) {
+    const name = resolveEmotion(requestedName);
     getEmotion(name);
     this.emotion = name;
     this.frameIndex = 0;

@@ -1,14 +1,14 @@
 // Browser preview of firmware/src/stack-chan/inari_emote_policy.cpp.
 // This is a visual simulator; feedback is idealized and no device is controlled.
-import { EMOTION_ORDER, getEmotion } from "./emotionCatalog.js";
-import { axisLimits, clampAngle, clamp } from "./stackchanMotionMath.js";
+import { DEVICE_EMOTION_ORDER, EMOTION_ORDER, getEmotion, resolveEmotion } from "./emotionCatalog.js";
+import { inariEditorLimits, clampAngle, clamp } from "./stackchanMotionMath.js";
 import { editorBounds, visibleStep, motionDraft, motionDraftFilename, FACE_TYPES, STEP_MIN_MS, STEP_MAX_MS, MAX_STEPS } from "./stackchanMotionDraft.js";
 import { baseFacePreset, baseFaceDesign, baseFaceBitmaps, loadBaseFaceDesign } from "./stackchanFaceLibrary.js";
 import { FACE_WIDTH, FACE_HEIGHT, validateFaceDesign, drawFace, packFacePixels, paintPackedFace } from "./stackchanFaceData.js";
 import { createFaceAnimationStudio } from "./stackchanFaceAnimationStudio.js";
 import { createStackchanScene } from "./stackchanScene.js";
 import { createLiveSerial } from "./stackchanLiveSerial.js";
-import { createStackchanAudioStudio } from "./stackchanAudioStudio.js";
+import { createStackchanAudioStudio } from "./stackchanAudioStudio.js?v=2";
 import { alignTracks } from "./stackchanUnifiedTimeline.js";
 import { upgradeFaceAnimationDesign } from "./stackchanFaceAnimationData.js";
 import { TIMELINES, EMOTION_LOOPS, PLANNING_RATES_DPS } from "./stackchanEmotionDesign.js";
@@ -17,16 +17,16 @@ const $ = (id) => document.getElementById(id);
 const labels = Object.fromEntries(EMOTION_ORDER.map((name) => [name, getEmotion(name).label]));
 export { TIMELINES };
 const LOOPS = new Set(EMOTION_LOOPS);
-const RATE = Object.fromEntries(EMOTION_ORDER.map((name)=>[name,[...PLANNING_RATES_DPS]]));
+const RATE = Object.fromEntries(DEVICE_EMOTION_ORDER.map((name)=>[name,[...PLANNING_RATES_DPS]]));
 let commandRates = null;
-const drafts = Object.fromEntries(EMOTION_ORDER.map((name) => [name, TIMELINES[name].map((part) => ({...part}))]));
-const MOTION_STORE="inari-stackchan-unified-motion-v3";
+const drafts = Object.fromEntries(DEVICE_EMOTION_ORDER.map((name) => [name, TIMELINES[name].map((part) => ({...part}))]));
+const MOTION_STORE="inari-stackchan-unified-motion-v5";
 try {
   const saved=JSON.parse(localStorage.getItem(MOTION_STORE));
-  if (saved && EMOTION_ORDER.every((name)=>Array.isArray(saved[name]) && saved[name].length>=1 && saved[name].length<=MAX_STEPS &&
+  if (saved && DEVICE_EMOTION_ORDER.every((name)=>Array.isArray(saved[name]) && saved[name].length>=1 && saved[name].length<=MAX_STEPS &&
       saved[name].every((part)=>Number.isInteger(part.ms)&&part.ms>=40&&part.ms<=60000&&
         Number.isFinite(part.yaw)&&Number.isFinite(part.pitch)&&FACE_TYPES.includes(part.face))))
-    for (const name of EMOTION_ORDER) drafts[name]=saved[name];
+    for (const name of DEVICE_EMOTION_ORDER) drafts[name]=saved[name];
 } catch { /* Keep defaults. */ }
 const saveMotions=()=>{try{localStorage.setItem(MOTION_STORE,JSON.stringify(drafts));}catch{ /* session remains editable */ }};
 const stepsFor = (name) => drafts[name];
@@ -35,11 +35,11 @@ const faceOptions = FACE_TYPES;
 function renderEditor() {
   const rows = $("editorRows");
   rows.replaceChildren();
-  const bounds = editorBounds(limits);
+  const bounds = editorBounds(limits,currentEmotion);
   stepsFor(currentEmotion).forEach((part, stepIndex) => {
     const row = document.createElement("tr");
     const number = document.createElement("td"); number.textContent = String(stepIndex+1).padStart(2,"0"); row.append(number);
-    const visible = visibleStep(part, limits);
+    const visible = visibleStep(part, limits,currentEmotion);
     for (const [key, value, min, max, increment] of [
       ["ms",visible.durationMs,STEP_MIN_MS,STEP_MAX_MS,10],
       ["yaw",visible.yawDegrees,bounds.yaw.min,bounds.yaw.max,.1],
@@ -94,7 +94,7 @@ function downloadJson(name, body) {
 
 async function designBundle() {
   const faceDesign=faceAnimationStudio.design();
-  for(const name of EMOTION_ORDER) {
+  for(const name of DEVICE_EMOTION_ORDER) {
     const frames=faceDesign.emotions[name].frames,steps=stepsFor(name);
     if(frames.length!==steps.length || frames.some((frame,index)=>frame.durationMs!==steps[index].ms))
       throw new RangeError(`${name} の顔と首の時間軸が一致していません。`);
@@ -105,7 +105,7 @@ async function designBundle() {
     faceDesign: baseFaceDesign(),
     faceAnimations: faceAnimationStudio.exportBitmaps(),
     faceAnimationDesign: faceDesign,
-    motions: EMOTION_ORDER.map((name) => motionDraft(name, stepsFor(name), LOOPS, limits)),
+    motions: DEVICE_EMOTION_ORDER.map((name) => motionDraft(name, stepsFor(name), LOOPS, limits)),
     audio: await audioStudio.exportConfig(),
   };
 }
@@ -113,7 +113,7 @@ $("exportDesignBundle").addEventListener("click", async () => {
   try {
     const body = await designBundle();
     downloadJson("inari-stackchan-design-v2.json", body);
-    $("faceStatus").textContent = "10感情の表情・首の動き・音設定をJSONに書き出しました。";
+    $("faceStatus").textContent = "全感情の表情・首の動き・音設定をJSONに書き出しました。";
   } catch (error) {
     $("faceStatus").textContent = error.message;
   }
@@ -125,14 +125,14 @@ $("importDesignFile").addEventListener("change",async(event)=>{
   try {
     if(file.size>8*1024*1024) throw new RangeError("JSONは8 MB以下にしてください。");
     const bundle=JSON.parse(await file.text());
-    if(bundle.format!=="inari-stackchan-design-v2" || !Array.isArray(bundle.motions) || bundle.motions.length!==EMOTION_ORDER.length)
-      throw new RangeError("10感情を含む実機用JSONを選んでください。");
+    if(bundle.format!=="inari-stackchan-design-v2" || !Array.isArray(bundle.motions) || bundle.motions.length!==DEVICE_EMOTION_ORDER.length)
+      throw new RangeError("対応する形式の実機用JSONを選んでください。");
     const faceDesign=upgradeFaceAnimationDesign(bundle.faceAnimationDesign);
     if(!faceDesign) throw new RangeError("顔アニメーションを読み込めません。");
     if (bundle.faceDesign && !validateFaceDesign(bundle.faceDesign))
       throw new RangeError("基本顔の編集設定を確認してください。");
     const imported={};
-    for(const name of EMOTION_ORDER) {
+    for(const name of DEVICE_EMOTION_ORDER) {
       const motion=bundle.motions.find((item)=>item.emotion===name);
       if(!motion || motion.format!=="inari-stackchan-motion-v1" || !Array.isArray(motion.steps) ||
           motion.steps.length<1 || motion.steps.length>24 || !["loop","once"].includes(motion.playback))
@@ -140,42 +140,42 @@ $("importDesignFile").addEventListener("change",async(event)=>{
       faceDesign.emotions[name].playback=motion.playback;
       imported[name]=motion.steps.map((part)=>{
         if(!Number.isInteger(part.durationMs)||part.durationMs<40||part.durationMs>60000||
-            !Number.isFinite(part.yawDegrees)||part.yawDegrees<-60||part.yawDegrees>60||
-            !Number.isFinite(part.pitchDegrees)||part.pitchDegrees<10||part.pitchDegrees>35||
+            !Number.isFinite(part.yawDegrees)||part.yawDegrees<(name==="CELEBRATE"?-80:-30)||part.yawDegrees>(name==="CELEBRATE"?80:30)||
+            !Number.isFinite(part.pitchDegrees)||part.pitchDegrees<10||part.pitchDegrees>30||
             !FACE_TYPES.includes(part.face)) throw new RangeError(`${name} の首の値を確認してください。`);
         return {ms:part.durationMs,yaw:part.yawDegrees/4,pitch:(part.pitchDegrees-30)/4,face:part.face};
       });
       alignTracks(faceDesign.emotions[name].frames,imported[name]);
     }
-    for(const name of EMOTION_ORDER) drafts[name]=imported[name];
+    for(const name of DEVICE_EMOTION_ORDER) drafts[name]=imported[name];
     try {
       await audioStudio.importConfig(bundle.audio ?? {
         format:"inari-stackchan-audio-v1",
-        emotions:Object.fromEntries(EMOTION_ORDER.map((name)=>[name,{mode:"none"}])),
+        emotions:Object.fromEntries(DEVICE_EMOTION_ORDER.map((name)=>[name,{mode:"none"}])),
         assets:[],
       });
     } catch(error) {
-      for(const name of EMOTION_ORDER) drafts[name]=previous[name];
+      for(const name of DEVICE_EMOTION_ORDER) drafts[name]=previous[name];
       throw error;
     }
-    for(const name of EMOTION_ORDER) bundle.motions.find((item)=>item.emotion===name).playback==="loop"?LOOPS.add(name):LOOPS.delete(name);
+    for(const name of DEVICE_EMOTION_ORDER) bundle.motions.find((item)=>item.emotion===name).playback==="loop"?LOOPS.add(name):LOOPS.delete(name);
     if (bundle.faceDesign) loadBaseFaceDesign(bundle.faceDesign);
     faceAnimationStudio.importDesign(faceDesign);
     saveMotions();
-    $("faceStatus").textContent="10感情の表情・首の動き・音設定を読み込みました。";
+    $("faceStatus").textContent="全感情の表情・首の動き・音設定を読み込みました。";
   } catch(error) {$("faceStatus").textContent=error instanceof Error?error.message:"JSONを読み込めませんでした。";}
   finally {event.target.value="";}
 });
 $("uploadAll").addEventListener("click",async()=>{
   const button=$("uploadAll"); button.disabled=true;
-  $("faceStatus").textContent="10感情のデータを検証し、実機へ書き込み中…";
+  $("faceStatus").textContent="全感情のデータを検証し、実機へ書き込み中…";
   try {
     const body=await designBundle();
     await liveSerial.prepareUpload();
     const response=await fetch("/api/inari/deploy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
     const result=await response.json();
     if (!response.ok || !result.ok) throw new Error(result.error||"書き込みに失敗しました。");
-    $("faceStatus").textContent=result.message||"10感情のデータを実機へ書き込みました。";
+    $("faceStatus").textContent=result.message||"全感情のデータを実機へ書き込みました。";
   } catch(error) {$("faceStatus").textContent=error instanceof Error?error.message:"書き込みに失敗しました。";}
   finally {liveSerial.finishUpload();button.disabled=false;}
 });
@@ -199,8 +199,9 @@ function readProfile() {
   const data = new FormData(profileForm);
   const n = (key) => Number(data.get(key));
   return {
-    yaw: axisLimits(n("yawMin"), n("yawZero"), n("yawMax"), -600, 600),
-    pitch: axisLimits(n("pitchMin"), n("pitchZero"), n("pitchMax"), 100, 350),
+    ...inariEditorLimits(Object.fromEntries([
+      "yawMin", "yawZero", "yawMax", "pitchMin", "pitchZero", "pitchMax",
+    ].map((key) => [key, n(key)]))),
     measured: data.has("measured"),
   };
 }
@@ -243,35 +244,105 @@ function renderFace(type) {
 let currentEmotion = "NEUTRAL", index = 0, cycle = 0, elapsed = 0, episodeMs = 0;
 let yaw = 0, pitch = 30, neckActive = true, paused = false, finished = false;
 let faceType = "neutral", displayedFace = null, lastFrame = 0;
+let deerPhase = null, deerSpeech = null;
+let deerMessage = "";
+const deerTimeFormat = new Intl.DateTimeFormat("ja-JP", {
+  timeZone: "Asia/Tokyo", hour: "numeric", minute: "numeric", hourCycle: "h23",
+});
+
+function deerPreviewMessage(pressedAt) {
+  const parts = deerTimeFormat.formatToParts(pressedAt);
+  const hour = Number(parts.find((part) => part.type === "hour").value);
+  const minute = Number(parts.find((part) => part.type === "minute").value);
+  return `${hour}時${minute}分、テスト畑のカメラに鹿が写っていたよ。畑の様子を確認して！`;
+}
+
+function clearDeerSpeech() {
+  if (deerSpeech) {
+    deerSpeech = null;
+    window.speechSynthesis.cancel();
+  }
+  speaking = false;
+  mouthOpen = 0;
+  lastMouthAt = -1000;
+  $("speakToggle").setAttribute("aria-pressed", "false");
+  $("speakToggle").textContent = "口パク";
+}
+
+function speakDeerPreview() {
+  const finish = (message) => {
+    deerSpeech = null;
+    clearDeerSpeech();
+    finished = true;
+    $("deerStatus").textContent = message;
+    $("motionStatus").textContent = "CONCERN · 表情を保持";
+  };
+  const message = deerMessage;
+  $("deerStatus").textContent = message;
+  if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+    finish(`音声なし · ${message}`);
+    return;
+  }
+  const utterance = new SpeechSynthesisUtterance(message);
+  utterance.lang = "ja-JP";
+  deerSpeech = utterance;
+  utterance.onstart = () => { if (deerSpeech === utterance) speaking = true; };
+  utterance.onend = () => {
+    if (deerSpeech === utterance) finish("Webの読み上げが完了しました。");
+  };
+  utterance.onerror = () => {
+    if (deerSpeech === utterance) finish(`音声なし · ${message}`);
+  };
+  window.speechSynthesis.speak(utterance);
+}
+
 function startStep() {
   const part = stepsFor(currentEmotion)[index];
   faceType = part.face;
   displayedFace = renderFace(faceType);
   $("stepReadout").textContent = `${String(index+1).padStart(2,"0")} / ${String(stepsFor(currentEmotion).length).padStart(2,"0")}`;
 }
-function play(name) {
+function play(requestedName, {deer = null} = {}) {
+  const name = resolveEmotion(requestedName);
   if (!TIMELINES[name] || !limits) return;
+  if (deerPhase && !deer) $("deerStatus").textContent = "知らせる → 心配の顔で読み上げ";
+  if (deerPhase || deer) clearDeerSpeech();
+  deerPhase = deer;
+  $("speakToggle").disabled = Boolean(deer);
   currentEmotion = name;
   index = cycle = episodeMs = 0;
   yaw = clampAngle(0, limits.yaw); pitch = clampAngle(30, limits.pitch);
-  neckActive = true; paused = false; finished = false;
+  neckActive = deer !== "concern"; paused = false; finished = false;
   $("pauseButton").textContent = "Ⅱ 一時停止";
   $("motionStatus").textContent = "再生中";
   $("currentEmotion").textContent = `${name} / ${labels[name]}`;
   document.querySelectorAll(".emotion-buttons button").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.emotion === name)));
   faceAnimationStudio.setEmotion(name);
   audioStudio.setEmotion(name);
-  audioStudio.play(name);
-  audioStudio.onTime(name,0);
+  if (deer === "concern") audioStudio.stop();
+  else {
+    audioStudio.play(name);
+    audioStudio.onTime(name,0);
+  }
   renderEditor();
   startStep();
 }
 function advance(dt) {
   if (paused) return;
-  if (!finished) episodeMs += dt;
-  audioStudio.onTime(currentEmotion,episodeMs);
-  if (episodeMs >= 30000) neckActive=false;
+  if (!finished && deerPhase !== "return") episodeMs += dt;
+  if (!deerPhase || deerPhase === "alert") audioStudio.onTime(currentEmotion,episodeMs);
+  if (neckActive && episodeMs >= 30000) {
+    neckActive=false;
+    $("motionStatus").textContent="首は30秒で安全停止 · 最初から再生で再開";
+  }
   const steps=stepsFor(currentEmotion), total=steps.reduce((sum,part)=>sum+part.ms,0);
+  if (deerPhase === "alert" && episodeMs >= total) {
+    episodeMs = total - 1;
+    deerPhase = "return";
+    neckActive = false;
+    $("motionStatus").textContent = "ALERT · 正面へ復帰";
+    $("deerStatus").textContent = "正面に戻り、音が終わってから読み上げます。";
+  }
   const looping=LOOPS.has(currentEmotion)||audioStudio.isBgmPlaying();
   if (!finished && !looping && episodeMs>=total) {
     episodeMs=total;finished=true;$("motionStatus").textContent="再生終了 · 表情を保持";
@@ -287,9 +358,16 @@ function advance(dt) {
   const [yawRate,pitchRate]=RATE[currentEmotion];
   yaw+=clamp(targetYaw-yaw,-yawRate*dt/1500,yawRate*dt/1500);
   pitch+=clamp(targetPitch-pitch,-pitchRate*dt/1500,pitchRate*dt/1500);
+  if (deerPhase === "return" && !audioStudio.isSoundPending() &&
+      Math.abs(yaw) < 0.01 && Math.abs(pitch - 30) < 0.01) {
+    play("CONCERN", {deer: "concern"});
+    $("motionStatus").textContent = "CONCERN · 読み上げ";
+    speakDeerPreview();
+  }
 }
 function paint(now) {
   const dt = Math.min(100, Math.max(0, now-lastFrame || 0)); lastFrame = now;
+  if (!limits) { requestAnimationFrame(paint); return; }
   advance(dt);
   const speechChanged=updateSpeech(now);
   const visibleCanvas=faceCanvas(faceType);
@@ -310,9 +388,82 @@ for (const name of EMOTION_ORDER) {
   button.addEventListener("click", () => { faceAnimationStudio.followPlayback(); play(name); });
   $("emotionButtons").append(button);
 }
-$("replayButton").addEventListener("click", () => { faceAnimationStudio.followPlayback(); play(currentEmotion); });
+$("deerPreview").addEventListener("click", () => {
+  if (!limits) return;
+  if (!$("serialStop").disabled) {
+    $("deerStatus").textContent = "USBの実機プレビューを終了してから試してください。";
+    return;
+  }
+  deerMessage = deerPreviewMessage(Date.now());
+  faceAnimationStudio.followPlayback();
+  setPreviewVisible(true);
+  play("ALERT", {deer: "alert"});
+  $("deerStatus").textContent = "知らせるの動きと登録した音を再生します。";
+});
+$("deerDevice").addEventListener("click", async () => {
+  const capturedAtMs = Date.now();
+  const button = $("deerDevice");
+  const status = $("deerDeviceStatus");
+  if (!$("serialStop").disabled) {
+    status.textContent = "USBの実機プレビューを終了してから試してください。";
+    return;
+  }
+  if (deerPhase && !finished) {
+    status.textContent = "Webでの再生が終わってから試してください。";
+    return;
+  }
+  button.disabled = true;
+  status.textContent = "実機へ鹿の検知テストを送信中…";
+  try {
+    const route = "/api/inari/debug/deer";
+    const response = await fetch(route, {
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({capturedAtMs}),
+      signal: AbortSignal.timeout(8000),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+    status.textContent = "実機へ送信しました。再生の完了を待っています。";
+    const expires = performance.now() + 120000;
+    while (performance.now() < expires) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const reply = await fetch(`${route}/${encodeURIComponent(result.announcementId)}`, {
+        signal: AbortSignal.timeout(8000),
+      });
+      const outcome = await reply.json();
+      if (!reply.ok) throw new Error(outcome.error);
+      if (outcome.status === "pending") continue;
+      const reasons = {
+        busy: "実機が動作中でした",
+        stale: "通知の有効期限が切れました",
+        tts_failed: "読み上げに失敗しました",
+        motion_failed: "首の動きが完了しませんでした",
+        connection_lost: "実機との接続が切れました",
+        user_stopped: "本体で停止されました",
+        superseded: "別の通知に切り替わりました",
+      };
+      status.textContent = outcome.status === "completed" && !outcome.reason
+        ? "実機で知らせる → 心配の読み上げが完了しました。"
+        : `実機での再生が完了しませんでした · ${reasons[outcome.reason] ?? "本体の状態を確認してください"}`;
+      return;
+    }
+    status.textContent = "実機から完了応答がありませんでした。本体の状態を確認してください。";
+  } catch (error) {
+    status.textContent = error.name === "TimeoutError"
+      ? "応答が時間切れになりました。実機の状態を確認してください。" : error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+$("replayButton").addEventListener("click", () => {
+  if (deerPhase) $("deerPreview").click();
+  else { faceAnimationStudio.followPlayback(); play(currentEmotion); }
+});
 $("pauseButton").addEventListener("click", () => {
   paused = !paused;
+  if (deerSpeech) {
+    if (paused) window.speechSynthesis.pause();
+    else window.speechSynthesis.resume();
+  }
   $("pauseButton").textContent = paused ? "▶ 再生" : "Ⅱ 一時停止";
   $("motionStatus").textContent = paused ? "一時停止中" : "再生中";
 });
@@ -394,7 +545,7 @@ const audioStudio=createStackchanAudioStudio({
   root:$("audioStudio"), getTimelineSteps:stepsFor,
   getTimelineDuration:(name)=>stepsFor(name).reduce((sum,part)=>sum+part.ms,0),
   onBgmEnd:(name)=>{
-    if (name===currentEmotion && !LOOPS.has(name)) {
+    if (!deerPhase && name===currentEmotion && !LOOPS.has(name)) {
       finished=true; $("motionStatus").textContent="BGM終了 · 表情を保持";
     }
   },
@@ -406,7 +557,7 @@ const liveSerial=createLiveSerial(()=>({
 }),(profile)=>{
   const bounds=[profile.yawMinTenths,profile.yawMaxTenths,profile.pitchMinTenths,profile.pitchMaxTenths];
   if(bounds.every(Number.isFinite)&&bounds[0]<bounds[1]&&bounds[2]<bounds[3]) {
-    limits={yaw:{minDeg:bounds[0]/10,maxDeg:bounds[1]/10},pitch:{minDeg:bounds[2]/10,maxDeg:bounds[3]/10},measured:true};
+    limits={yaw:{minDeg:bounds[0]/10,maxDeg:bounds[1]/10},pitch:{minDeg:bounds[2]/10,maxDeg:Math.min(30,bounds[3]/10)},measured:true};
     $("rangeReadout").textContent=`実機安全範囲　左右 ${limits.yaw.minDeg.toFixed(1)}° ～ ${limits.yaw.maxDeg.toFixed(1)}°　／　上下 ${limits.pitch.minDeg.toFixed(1)}° ～ ${limits.pitch.maxDeg.toFixed(1)}°`;
     $("profileState").textContent="実機の可動範囲";
     $("profileState").classList.add("measured");
@@ -425,8 +576,13 @@ const liveSerial=createLiveSerial(()=>({
     lastMeasuredPose={at:now,yaw:profile.yawTenths,pitch:profile.pitchTenths};
   }
   const rate=RATE[currentEmotion],command=commandRates?.[currentEmotion];
-  $("motorEvidence").textContent=`実機の指令上限 ${currentEmotion}: 左右 ${command?.[0]??"未取得"}°/秒・上下 ${command?.[1]??"未取得"}°/秒。到達時間の設計目安: 左右 ${rate[0]}°/秒・上下 ${rate[1]}°/秒。観測した最大移動速度: 左右 ${observedYawPeak.toFixed(1)}°/秒・上下 ${observedPitchPeak.toFixed(1)}°/秒（今回の動作中の値）。設計目安は物理的な最高速度の保証ではありません。`;
+  const measured=profile.poseValid===true&&Number.isFinite(profile.yawTenths)&&Number.isFinite(profile.pitchTenths)
+    ? `現在の実測角: 左右 ${(profile.yawTenths/10).toFixed(1)}°・上下 ${(profile.pitchTenths/10).toFixed(1)}°。` : "";
+  $("motorEvidence").textContent=`${measured}実機の指令上限 ${currentEmotion}: 左右 ${command?.[0]??"未取得"}°/秒・上下 ${command?.[1]??"未取得"}°/秒。到達時間の設計目安: 左右 ${rate[0]}°/秒・上下 ${rate[1]}°/秒。観測した最大移動速度: 左右 ${observedYawPeak.toFixed(1)}°/秒・上下 ${observedPitchPeak.toFixed(1)}°/秒（今回の動作中の値）。設計目安は物理的な最高速度の保証ではありません。`;
   faceAnimationStudio.refreshTimeline();
+},()=>{
+  faceAnimationStudio.followPlayback();
+  play(currentEmotion);
 });
 updateLimits();
 requestAnimationFrame(paint);

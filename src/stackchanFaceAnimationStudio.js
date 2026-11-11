@@ -1,4 +1,4 @@
-import { EMOTION_ORDER } from "./emotionCatalog.js";
+import { DEVICE_EMOTION_ORDER as EMOTION_ORDER } from "./emotionCatalog.js";
 import { FACE_TYPES } from "./stackchanMotionDraft.js";
 import { FACE_FIELDS } from "./stackchanFaceStudio.js";
 import { FACE_WIDTH, FACE_HEIGHT, FACE_ENCODING, drawFace, packFacePixels, paintPackedFace, encodeBase64, validatePreset } from "./stackchanFaceData.js";
@@ -6,7 +6,7 @@ import { FACE_ANIMATION_FORMAT, MAX_FACE_ANIMATION_FRAMES,
   MIN_FACE_FRAME_MS, MAX_FACE_FRAME_MS, defaultFaceAnimationDesign, validateFaceAnimationDesign, upgradeFaceAnimationDesign, faceFrameAt } from "./stackchanFaceAnimationData.js";
 import { alignTracks, motorFeasibility } from "./stackchanUnifiedTimeline.js";
 
-const STORAGE_KEY = "inari-stackchan-face-animation-design-v3";
+const STORAGE_KEY = "inari-stackchan-face-animation-design-v4";
 const $ = (id) => document.getElementById(id);
 const option = (value, label=value) => { const node=document.createElement("option"); node.value=value; node.textContent=label; return node; };
 

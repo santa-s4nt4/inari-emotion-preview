@@ -15,9 +15,19 @@ export function axisLimits(min, zero, max, commandMinTenths, commandMaxTenths) {
   return { goalMin, goalMax, minDeg: fromRaw(goalMin, zero) / 10, maxDeg: fromRaw(goalMax, zero) / 10, zero };
 }
 
+export function inariEditorLimits(raw) {
+  // The firmware reserves 8 raw steps past the authored goal for arrival trim.
+  const pitch = axisLimits(raw.pitchMin, raw.pitchZero, raw.pitchMax, 100, 350);
+  return {
+    yaw: axisLimits(raw.yawMin, raw.yawZero, raw.yawMax, -925, 925),
+    pitch: {...pitch, maxDeg:Math.min(30, pitch.maxDeg)},
+  };
+}
+
 export function clampAngle(deg, limits) {
+  const bounded = clamp(deg, limits.minDeg, limits.maxDeg);
   if (!Number.isInteger(limits.zero))
-    return clamp(deg, limits.minDeg, limits.maxDeg);
-  const raw = toRaw(Math.round(deg * 10), limits.zero);
+    return bounded;
+  const raw = toRaw(Math.round(bounded * 10), limits.zero);
   return fromRaw(clamp(raw, limits.goalMin, limits.goalMax), limits.zero) / 10;
 }

@@ -2,10 +2,20 @@
 // choose whole drawings and small servo-like poses.
 const step = (ms, pose = [0, 0, 0], artwork) => ({ ms, pose, artwork });
 
-export const EMOTION_ORDER = Object.freeze([
+// Device bundle v2 uses fixed motion and face slots.
+export const DEVICE_EMOTION_ORDER = Object.freeze([
   "NEUTRAL", "NOTICE", "CURIOUS", "ATTENTIVE", "HAPPY",
   "CELEBRATE", "CONCERN", "ALERT", "RELIEF", "REST",
 ]);
+
+const EMOTION_ALIASES = Object.freeze({ NOTICE: "ALERT", CURIOUS: "CONCERN" });
+export const EMOTION_ORDER = Object.freeze(
+  DEVICE_EMOTION_ORDER.filter((name) => !Object.hasOwn(EMOTION_ALIASES, name)),
+);
+
+export function resolveEmotion(name) {
+  return Object.hasOwn(EMOTION_ALIASES, name) ? EMOTION_ALIASES[name] : name;
+}
 
 // These assets were extracted by character silhouette, not by dividing the
 // source sheet into equal cells. That keeps neighboring characters out of view.
@@ -36,16 +46,6 @@ export const EMOTIONS = Object.freeze({
     label: "見守る", face: "正面を向いた穏やかな目", motion: "静止を中心に、ときどき瞬きと小さな視線の間", speed: "very slow", playback: "loop",
     description: "静かに作物を見守り、ときどき瞬きをする。",
     steps: [step(1700), step(190, [0, 0, 0], "REST"), step(2100), step(950, [1, 0, 1]), step(180, [1, 0, 1], "REST"), step(2400)],
-  },
-  NOTICE: {
-    label: "気づく", face: "一瞬だけ少し開く目", motion: "小さく顔を上げ、見つけた方向で止まる", speed: "quick → stop", playback: "once",
-    description: "小さな変化に、ぴくっと気づく。",
-    steps: [step(140, [0, 0, 0], "NEUTRAL"), step(180, [1, -4, 2]), step(900, [2, -3, 2])],
-  },
-  CURIOUS: {
-    label: "気にする", face: "少し考えている目", motion: "ゆっくり首を傾けて観察する", speed: "slow", playback: "loop",
-    description: "気になるものを、少し長く見つめる。",
-    steps: [step(900), step(1600, [1, 0, -2]), step(1700, [1, 0, -2]), step(1100), step(1900, [-1, 0, 2])],
   },
   ATTENTIVE: {
     label: "聞く", face: "相手を見る優しい目と自然な瞬き", motion: "正面のまま瞬きし、うんうんと2回頷く", speed: "medium", playback: "loop",
@@ -109,7 +109,8 @@ export const EMOTIONS = Object.freeze({
 });
 
 export function getEmotion(name) {
-  const emotion = EMOTIONS[name];
+  const resolved = resolveEmotion(name);
+  const emotion = Object.hasOwn(EMOTIONS, resolved) ? EMOTIONS[resolved] : undefined;
   if (!emotion) throw new RangeError("Unknown INARI emotion: " + name);
   return emotion;
 }

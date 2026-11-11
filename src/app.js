@@ -1,6 +1,6 @@
-import { EMOTION_ORDER, getEmotion } from "./emotionCatalog.js?v=16";
-import { EmotionPlayer } from "./emotionPlayer.js?v=16";
-import { mountCharacterSwitch } from "./characterSwitch.js?v=16";
+import { EMOTION_ORDER, getEmotion, resolveEmotion } from "./emotionCatalog.js?v=17";
+import { EmotionPlayer } from "./emotionPlayer.js?v=17";
+import { mountCharacterSwitch } from "./characterSwitch.js?v=17";
 
 const sprite = document.getElementById("sprite");
 const frameCount = document.getElementById("frameCount");
@@ -24,7 +24,8 @@ for (const name of EMOTION_ORDER) {
   directButtons.append(button);
 }
 
-export function playEmotion(name) {
+export function playEmotion(requestedName) {
+  const name = resolveEmotion(requestedName);
   const config = getEmotion(name);
   selectedName = name;
   player.playEmotion(name);
@@ -37,7 +38,7 @@ export function playEmotion(name) {
   document.getElementById("specSpeed").textContent = config.speed;
   document.getElementById("specPlayback").textContent = config.playback === "loop" ? "loop" : "one-shot／デモloop";
   document.getElementById("sequencePosition").textContent =
-    `${String(EMOTION_ORDER.indexOf(name) + 1).padStart(2, "0")} / 10`;
+    `${String(EMOTION_ORDER.indexOf(name) + 1).padStart(2, "0")} / ${String(EMOTION_ORDER.length).padStart(2, "0")}`;
   document.getElementById("playbackGuide").textContent = config.playback === "loop"
     ? `${name}の動きを繰り返し再生しています。`
     : `${name}は本来1回の動きです。比較用デモでは繰り返し再生しています。`;

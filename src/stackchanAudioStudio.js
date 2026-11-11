@@ -1,4 +1,4 @@
-import { EMOTION_ORDER } from "./emotionCatalog.js";
+import { DEVICE_EMOTION_ORDER as EMOTION_ORDER } from "./emotionCatalog.js";
 
 export const AUDIO_FORMAT = "inari-stackchan-audio-v1";
 export const MAX_AUDIO_FILE_BYTES = 1024 * 1024;
@@ -178,8 +178,10 @@ export function createStackchanAudioStudio({root, getTimelineDuration, getTimeli
     onChange();
   }
   function setting(name = emotion) { return config.emotions[name]; }
+  let loadingAudio = false;
   function stop() {
     ++playToken;
+    loadingAudio = false;
     if (currentAudio) { currentAudio.pause(); currentAudio.onended = null; currentAudio = null; }
     if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
     currentMode = "none";
@@ -195,11 +197,20 @@ export function createStackchanAudioStudio({root, getTimelineDuration, getTimeli
     const selected = setting(name);
     if (selected.mode === "none" || !selected.assetId) return false;
     const token = playToken;
+    loadingAudio = true;
     let item;
     try { item = await getAsset(selected.assetId); }
-    catch { feedback.textContent = "保存された音声を読み込めません。MP3を選び直してください。"; return false; }
-    if (!item || token !== playToken) {
-      if (!item) feedback.textContent = "保存された音声が見つかりません。MP3を選び直してください。";
+    catch {
+      if (token === playToken) {
+        stop();
+        feedback.textContent = "保存された音声を読み込めません。MP3を選び直してください。";
+      }
+      return false;
+    }
+    if (token !== playToken) return false;
+    loadingAudio = false;
+    if (!item) {
+      feedback.textContent = "保存された音声が見つかりません。MP3を選び直してください。";
       return false;
     }
     currentObjectUrl = URL.createObjectURL(item.blob);
@@ -211,7 +222,13 @@ export function createStackchanAudioStudio({root, getTimelineDuration, getTimeli
       if (wasBgm) onBgmEnd(name);
     };
     try { await currentAudio.play(); return true; }
-    catch { stop(); feedback.textContent = "ブラウザで音を鳴らせませんでした。試聴ボタンから再生してください。"; return false; }
+    catch {
+      if (token === playToken) {
+        stop();
+        feedback.textContent = "ブラウザで音を鳴らせませんでした。試聴ボタンから再生してください。";
+      }
+      return false;
+    }
   }
   async function importFile(file) {
     if (!file) return;
@@ -276,6 +293,7 @@ export function createStackchanAudioStudio({root, getTimelineDuration, getTimeli
       }
     },
     stop,
+    isSoundPending() { return loadingAudio || currentAudio !== null; },
     isBgmPlaying() { return currentMode === "bgm" && currentAudio !== null && !currentAudio.paused && !currentAudio.ended; },
     async importConfig(source) {
       if (!source || source.format!==AUDIO_FORMAT || !Array.isArray(source.assets))
