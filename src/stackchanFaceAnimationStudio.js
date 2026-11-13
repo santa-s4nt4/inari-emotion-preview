@@ -1,19 +1,65 @@
+import { REVISED_ENVIRONMENT_EMOTES } from "./stackchanEmotionDesign.js";
 import { DEVICE_EMOTION_ORDER as EMOTION_ORDER } from "./emotionCatalog.js";
 import { FACE_TYPES } from "./stackchanMotionDraft.js";
 import { FACE_FIELDS } from "./stackchanFaceStudio.js";
-import { FACE_WIDTH, FACE_HEIGHT, FACE_ENCODING, drawFace, packFacePixels, paintPackedFace, encodeBase64, validatePreset } from "./stackchanFaceData.js";
+import { FACE_WIDTH, FACE_HEIGHT, FACE_ENCODING, drawFace, packFacePixels, paintPackedFace, encodeBase64, validatePreset, drawEnvironmentMark, encodeEnvironmentMark, drawFoxWhiskers, drawThinkingSpinner, thinkingSpinnerPhase } from "./stackchanFaceData.js";
 import { FACE_ANIMATION_FORMAT, MAX_FACE_ANIMATION_FRAMES,
   MIN_FACE_FRAME_MS, MAX_FACE_FRAME_MS, defaultFaceAnimationDesign, validateFaceAnimationDesign, upgradeFaceAnimationDesign, faceFrameAt } from "./stackchanFaceAnimationData.js";
 import { alignTracks, motorFeasibility } from "./stackchanUnifiedTimeline.js";
 
-const STORAGE_KEY = "inari-stackchan-face-animation-design-v4";
+const STORAGE_KEY = "inari-stackchan-face-animation-design-v10";
+const PREVIOUS_THINKING_STORAGE_KEY = "inari-stackchan-face-animation-design-v9";
+const COLD_MOUTH_STORAGE_KEY = "inari-stackchan-face-animation-design-v8";
+const TEMPERATURE_STORAGE_KEY = "inari-stackchan-face-animation-design-v7";
+const ROUND_EYES_STORAGE_KEY = "inari-stackchan-face-animation-design-v6";
+const PREVIOUS_STORAGE_KEY = "inari-stackchan-face-animation-design-v5";
+const LEGACY_STORAGE_KEY = "inari-stackchan-face-animation-design-v4";
 const $ = (id) => document.getElementById(id);
 const option = (value, label=value) => { const node=document.createElement("option"); node.value=value; node.textContent=label; return node; };
 
 function loadDesign(defaults) {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    const upgraded=upgradeFaceAnimationDesign(saved);
+    const current = localStorage.getItem(STORAGE_KEY);
+    const previousThinking = localStorage.getItem(PREVIOUS_THINKING_STORAGE_KEY);
+    const coldMouth = localStorage.getItem(COLD_MOUTH_STORAGE_KEY);
+    const temperature = localStorage.getItem(TEMPERATURE_STORAGE_KEY);
+    const roundEyes = localStorage.getItem(ROUND_EYES_STORAGE_KEY);
+    const previous = localStorage.getItem(PREVIOUS_STORAGE_KEY);
+    const saved = JSON.parse(current ?? previousThinking ?? coldMouth ?? temperature ?? roundEyes ?? previous ?? localStorage.getItem(LEGACY_STORAGE_KEY));
+    if (current === null && saved?.emotions?.THINKING) {
+      for (const {preset} of saved.emotions.THINKING.frames) {
+        if (preset.eyeMode === "dot") Object.assign(preset,{eyeMode:"fox",eyeWidth:32,eyeHeight:12});
+        preset.browSide = "none";
+      }
+    }
+    if (current === null && previousThinking === null && saved?.emotions) {
+      for (const name of REVISED_ENVIRONMENT_EMOTES) delete saved.emotions[name];
+    }
+    if (current === null && previousThinking === null && coldMouth === null && temperature === null && saved?.emotions) {
+      delete saved.emotions.HOT;
+      delete saved.emotions.COLD;
+    }
+    const upgraded=upgradeFaceAnimationDesign(saved, defaults);
+    if (upgraded && current === null && previousThinking === null && coldMouth === null && temperature !== null) {
+      for (const {preset} of upgraded.emotions.COLD.frames) {
+        const oldCenter = (preset.mouthOffsetX === -2 && [149,151].includes(preset.mouthY)) ||
+          (preset.mouthOffsetX === 2 && [155,156].includes(preset.mouthY));
+        if (oldCenter) {
+          preset.mouthOffsetX = 0;
+          preset.mouthY = 150;
+        }
+      }
+    }
+    if (upgraded && current === null && previousThinking === null && coldMouth === null && temperature === null && roundEyes === null) {
+      for (const name of ["ALERT","CELEBRATE"]) {
+        for (const {preset} of upgraded.emotions[name].frames) {
+          if (preset.eyeMode === "ellipse") {
+            preset.eyeRadius = Math.max(4,Math.min(18,Math.round(Math.sqrt(preset.eyeWidth * preset.eyeHeight) / 2)));
+          } else if (preset.eyeMode !== "wide") continue;
+          preset.eyeMode = "dot";
+        }
+      }
+    }
     if (upgraded) return upgraded;
   } catch { /* Use the original INARI sequence. */ }
   return defaults;
@@ -26,12 +72,16 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
   let selected = 0;
   let override = null;
   let selectedPart="leftEye";
-  let shownFrame = null;
+  let shownFrame = null, shownPhase = null;
   let lastStatus = "";
   const currentSnapshot=()=>JSON.stringify({design,motions:Object.fromEntries(EMOTION_ORDER.map((name)=>[name,getMotionSteps(name)]))});
   let snapshot=currentSnapshot();
   const undoStack=[], redoStack=[];
   const cache = new WeakMap();
+  const markCanvas = document.createElement("canvas");
+  markCanvas.width = FACE_WIDTH; markCanvas.height = FACE_HEIGHT;
+  const markContext = markCanvas.getContext("2d",{willReadFrequently:true});
+  const marks = new Map();
   const recovered=[];
   function alignEmotion(name) {
     const frames=design.emotions[name].frames,steps=getMotionSteps(name);
@@ -96,15 +146,33 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
     showFrame(selectedFrame()); status(); onChange();
     updateHistoryButtons();
   }
-  function frameImage(frame) {
-    if (cache.has(frame)) return cache.get(frame);
+  function frameImage(frame, name, index) {
+    const cached = cache.get(frame);
+    if (cached?.index === index) return cached;
     const canvas = document.createElement("canvas");
     canvas.width=FACE_WIDTH; canvas.height=FACE_HEIGHT;
     const ctx=canvas.getContext("2d",{willReadFrequently:true});
     drawFace(ctx,frame.preset);
+    const thinking = name === "THINKING";
+    const base = thinking ? packFacePixels(ctx.getImageData(0,0,FACE_WIDTH,FACE_HEIGHT).data) : null;
+    drawEnvironmentMark(ctx, name, index);
     const pixels=packFacePixels(ctx.getImageData(0,0,FACE_WIDTH,FACE_HEIGHT).data);
-    paintPackedFace(ctx,pixels);
-    const image={canvas,pixels}; cache.set(frame,image); return image;
+    paintPackedFace(ctx,base ?? pixels);
+    drawFoxWhiskers(ctx);
+    const image={canvas,pixels,index,previews:new Map()}; cache.set(frame,image); return image;
+  }
+  function displayFrame(frame, name, index, phase = index % 8) {
+    const image=frameImage(frame,name,index);
+    if (name!=="THINKING") return image.canvas;
+    if (!image.previews.has(phase)) {
+      const canvas=document.createElement("canvas");
+      canvas.width=FACE_WIDTH; canvas.height=FACE_HEIGHT;
+      const ctx=canvas.getContext("2d");
+      ctx.drawImage(image.canvas,0,0);
+      drawThinkingSpinner(ctx,phase);
+      image.previews.set(phase,canvas);
+    }
+    return image.previews.get(phase);
   }
   function partPosition(preset,part) {
     const leftX=160-preset.eyeSpacing/2+preset.gazeX;
@@ -216,11 +284,14 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
     if (message!==lastStatus) { $("faceAnimationStatus").textContent=message; lastStatus=message; }
     $("faceAnimationFollow").disabled=override===null;
   }
-  function showFrame(frame) {
-    if (shownFrame===frame) return;
-    shownFrame=frame;
+  function showFrame(frame, elapsedMs) {
+    const index=animation().frames.indexOf(frame);
+    const phase=emotion==="THINKING" && elapsedMs!==undefined && override===null
+      ? thinkingSpinnerPhase(elapsedMs) : index % 8;
+    if (shownFrame===frame && shownPhase===phase) return;
+    shownFrame=frame; shownPhase=phase;
     previewCtx.imageSmoothingEnabled=false;
-    previewCtx.drawImage(frameImage(frame).canvas,0,0);
+    previewCtx.drawImage(displayFrame(frame,emotion,index,phase),0,0);
     drawSelection();
   }
   function renderRows() {
@@ -420,7 +491,18 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
     canvasAt(name,elapsedMs,forceLoop=false) {
       const track=animation(name);
       const frame=override!==null && name===emotion?track.frames[override]:faceFrameAt(forceLoop?{...track,playback:"loop"}:track,elapsedMs).frame;
-      return frameImage(frame).canvas;
+      const index=track.frames.indexOf(frame);
+      const phase=override!==null && name===emotion ? index%8 : thinkingSpinnerPhase(elapsedMs);
+      return displayFrame(frame,name,index,phase);
+    },
+    frameIndexAt(name,elapsedMs,forceLoop=false) {
+      const track=animation(name);
+      return override!==null && name===emotion ? override : faceFrameAt(forceLoop?{...track,playback:"loop"}:track,elapsedMs).index;
+    },
+    markAt(name,index) {
+      const key = `${name}:${index}`;
+      if (!marks.has(key)) marks.set(key, encodeEnvironmentMark(markContext,name,index));
+      return marks.get(key);
     },
     presetAt(name,elapsedMs,forceLoop=false) {
       const track=animation(name);
@@ -431,15 +513,15 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
       if (name!==emotion) return;
       const track=animation();
       const frame=override!==null?track.frames[override]:faceFrameAt(forceLoop?{...track,playback:"loop"}:track,elapsedMs).frame;
-      showFrame(frame); status(elapsedMs);
+      showFrame(frame,elapsedMs); status(elapsedMs);
     },
     design() { return structuredClone(design); },
-    exportBitmaps() {
+    exportBitmaps(names = EMOTION_ORDER) {
       if (!validateFaceAnimationDesign(design)) throw new RangeError("顔アニメーションの設定を確認してください。");
       return {format:FACE_ANIMATION_FORMAT,width:FACE_WIDTH,height:FACE_HEIGHT,encoding:FACE_ENCODING,
-        emotions:Object.fromEntries(EMOTION_ORDER.map((name) => [name,{
+        emotions:Object.fromEntries(names.map((name) => [name,{
           playback:animation(name).playback,
-          frames:animation(name).frames.map((frame) => ({durationMs:frame.durationMs,pixels:encodeBase64(frameImage(frame).pixels)})),
+          frames:animation(name).frames.map((frame,index) => ({durationMs:frame.durationMs,pixels:encodeBase64(frameImage(frame,name,index).pixels)})),
         }]))};
     },
   };

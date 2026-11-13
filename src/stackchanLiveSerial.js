@@ -1,11 +1,14 @@
 const PREFIX="INARI_LIVE_V1 ";
 const ACK="INARI_LIVE_ACK ";
+const FRAME_ACK_TIMEOUT="フレームの応答がありません。";
 const $=(id)=>document.getElementById(id);
 
 export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
   let port=null, reader=null, writer=null, connected=false, active=false, buffer="", lastSent=0, sending=false, uploadBusy=false;
+  let supportsMarks=false,supportsFoxFace=false;
   let profileSupported=false,profileRetry=false,lastProfileAt=0;
   const pending=new Map();
+  let outgoing=Promise.resolve();
   const status=(message)=>{$("serialStatus").textContent=message;};
   function buttons() {
     $("serialConnect").disabled=uploadBusy||connected;
@@ -32,13 +35,6 @@ export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
               const line=buffer.slice(0,end).trim(); buffer=buffer.slice(end+1);
               if (!line.startsWith(ACK)) continue;
               let reply; try { reply=JSON.parse(line.slice(ACK.length)); } catch { continue; }
-              if (reply.cmd==="frame") {
-                if (!reply.ok) {
-                  active=false; buttons(); status(`実機プレビューを停止しました: ${reply.reason||"通信エラー"}`);
-                } else if (reply.reason==="face_only") {
-                  status("顔を実機へ反映中。首サーボは利用できません。");
-                }
-              }
               if (reply.cmd==="end" && reply.reason==="timeout") {
                 active=false; buttons(); status("通信が5秒止まり、実機は通常動作へ戻りました。");
               }
@@ -52,17 +48,54 @@ export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
     } catch (error) { status(error instanceof Error?error.message:"USB通信が終了しました。"); }
     connected=false; active=false; buttons(); failPending("USB通信が終了しました。");
   }
-  async function send(cmd,data={}) {
-    if (!writer) throw new Error("USB接続がありません。");
-    await writer.write(new TextEncoder().encode(PREFIX+JSON.stringify({cmd,...data})+"\n"));
-  }
-  async function request(cmd,data={}) {
-    const answer=new Promise((resolve,reject)=>{
-      const timer=setTimeout(()=>{pending.delete(cmd);reject(new Error("実機から応答がありません。"));},1800);
-      pending.set(cmd,{resolve,reject,timer});
+  function request(cmd,data={},timeoutMs=1800) {
+    const connection=writer;
+    const operation=outgoing.then(async()=>{
+      if (!connection || connection!==writer) throw new Error("USB接続がありません。");
+      // A leading newline lets the receiver discard a truncated earlier line.
+      const bytes=new TextEncoder().encode("\n"+PREFIX+JSON.stringify({cmd,...data})+"\n");
+      let entry;
+      const answer=new Promise((resolve,reject)=>{
+        const timer=setTimeout(()=>{
+          pending.delete(cmd);
+          reject(new Error(cmd==="frame"?FRAME_ACK_TIMEOUT:"実機から応答がありません。"));
+        },timeoutMs);
+        entry={resolve,reject,timer};
+        pending.set(cmd,entry);
+      });
+      // Keep the read promise handled while the USB writes finish.
+      answer.catch(()=>{});
+      try {
+        for (let offset=0;offset<bytes.length;offset+=256) {
+          await connection.write(bytes.subarray(offset,offset+256));
+          if (offset+256<bytes.length) await new Promise(resolve=>setTimeout(resolve,6));
+        }
+        return await answer;
+      } finally {
+        clearTimeout(entry.timer);
+        if (pending.get(cmd)===entry) pending.delete(cmd);
+      }
     });
-    try { await send(cmd,data); return await answer; }
-    catch(error) { const entry=pending.get(cmd); if (entry) {clearTimeout(entry.timer);pending.delete(cmd);} throw error; }
+    outgoing=operation.catch(()=>{});
+    return operation;
+  }
+
+  async function sendFrame() {
+    for (let attempt=0;attempt<3 && active;attempt++) {
+      try {
+        const reply=await request("frame",getFrame(supportsMarks,supportsFoxFace),400);
+        if (active && reply.reason==="face_only") status("顔を実機へ反映中。首サーボは利用できません。");
+        return;
+      } catch(error) {
+        if (!active) return;
+        if (error.message===FRAME_ACK_TIMEOUT && attempt<2) continue;
+        active=false;
+        buttons();
+        status(`実機プレビューを停止しました。USBをつないだまま再開できます（${error.message}）。`);
+        // Release the device's preview state immediately after a failed run.
+        try { await request("end"); } catch { /* The device timeout also releases it. */ }
+      }
+    }
   }
   async function waitForBootHello() {
     let lastError;
@@ -93,6 +126,8 @@ export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
       if (hello.device!=="stack-chan") throw new Error("接続先をStack-chanと確認できませんでした。");
       // `hello` reports whether live preview currently owns the neck. The
       // firmware sets that flag only after `begin`, so an idle false is normal.
+      supportsMarks=hello.markBitmap===true;
+      supportsFoxFace=hello.foxFace===true;
       connected=true; buttons();
       status("Stack-chanを識別しました。実機プレビューを開始すると首サーボの状態を確認します。");
       for(let attempt=0;attempt<3;attempt++) {
@@ -152,6 +187,14 @@ export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
   navigator.serial?.addEventListener("disconnect",()=>{close();status("USB接続が切れました。実機は自動で通常動作へ戻ります。");});
   buttons();
   return {
+    async stopForAnnouncement() {
+      if (!active) return;
+      active=false; buttons();
+      // Stop producing frames before awaiting end, so USB cannot retake the
+      // neck while the server delivers the queued notification over Wi-Fi.
+      await request("end");
+      status("通知のためUSBの実機プレビューを終了しました。");
+    },
     async prepareUpload() {
       uploadBusy=true; buttons();
       if (active) {
@@ -163,15 +206,22 @@ export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
     },
     finishUpload() { uploadBusy=false; buttons(); },
     tick(now) {
-      if(active&&(profileSupported||profileRetry)&&now-lastProfileAt>=(profileSupported?1000:3000)&&!pending.has("profile")) {
+      if (!active || sending || now-lastSent<200) return;
+      lastSent=now;
+      sending=true;
+      sendFrame().then(async()=>{
+        if (!active || !(profileSupported||profileRetry) ||
+            now-lastProfileAt<(profileSupported?1000:3000) || pending.has("profile")) return;
         lastProfileAt=now;
-        request("profile").then((profile)=>{profileSupported=true;profileRetry=false;onProfile(profile);})
-          .catch((error)=>{profileSupported=false;profileRetry=error instanceof Error&&["motion_unavailable","実機から応答がありません。"].includes(error.message);});
-      }
-      if (!active||sending||now-lastSent<200) return;
-      lastSent=now; sending=true;
-      send("frame",getFrame()).catch((error)=>{active=false;buttons();status(error.message);})
-        .finally(()=>{sending=false;});
+        try {
+          onProfile(await request("profile",{},450));
+          profileSupported=true;
+          profileRetry=false;
+        } catch(error) {
+          profileSupported=false;
+          profileRetry=["motion_unavailable","実機から応答がありません。"].includes(error.message);
+        }
+      }).finally(()=>{sending=false;});
     },
   };
 }

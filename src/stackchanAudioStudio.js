@@ -1,4 +1,4 @@
-import { DEVICE_EMOTION_ORDER as EMOTION_ORDER } from "./emotionCatalog.js";
+import { DEVICE_EMOTION_ORDER as EMOTION_ORDER, EXTRA_DEVICE_LABELS } from "./emotionCatalog.js";
 
 export const AUDIO_FORMAT = "inari-stackchan-audio-v1";
 export const MAX_AUDIO_FILE_BYTES = 1024 * 1024;
@@ -43,10 +43,11 @@ function legacyCueMs(name, cueStep, getTimelineSteps) {
 }
 
 export function normalizeAudioEmotions(emotions,getTimelineSteps=()=>[]) {
-  if (!emotions || Object.keys(emotions).sort().join()!==[...EMOTION_ORDER].sort().join())
+  if (!emotions || Object.keys(emotions).some((name)=>!EMOTION_ORDER.includes(name)) ||
+      EMOTION_ORDER.some((name)=>!Object.hasOwn(emotions,name) && !Object.hasOwn(EXTRA_DEVICE_LABELS,name)))
     throw new TypeError("音設定の感情を確認してください。");
   return Object.fromEntries(EMOTION_ORDER.map((name)=>{
-    const source=emotions[name];
+    const source=emotions[name] ?? {mode:"none"};
     if (!source || typeof source!=="object" || !["none","se","bgm"].includes(source.mode))
       throw new TypeError(`${name} の音設定を確認してください。`);
     const cueMs=source.cueMs ?? (source.cueStep===undefined ? 0 : legacyCueMs(name,source.cueStep,getTimelineSteps));
@@ -294,6 +295,7 @@ export function createStackchanAudioStudio({root, getTimelineDuration, getTimeli
     },
     stop,
     isSoundPending() { return loadingAudio || currentAudio !== null; },
+    isIntroSoundPending() { return (setting().mode === "se" && !seFired) || loadingAudio || currentAudio !== null; },
     isBgmPlaying() { return currentMode === "bgm" && currentAudio !== null && !currentAudio.paused && !currentAudio.ended; },
     async importConfig(source) {
       if (!source || source.format!==AUDIO_FORMAT || !Array.isArray(source.assets))

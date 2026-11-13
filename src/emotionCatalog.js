@@ -2,15 +2,25 @@
 // choose whole drawings and small servo-like poses.
 const step = (ms, pose = [0, 0, 0], artwork) => ({ ms, pose, artwork });
 
-// Device bundle v2 uses fixed motion and face slots.
+export const ENVIRONMENT_LABELS = Object.freeze({
+  COLD: "寒くてぶるぶる", HOT: "暑くてぐったり", DRY_SOIL: "乾いた土をのぞく",
+  WET_SOIL: "湿った土で足踏み", DRY_AIR: "空気の乾燥でしょんぼり",
+  HUMID_AIR: "湿気でむずむず", CHEERFUL: "ごきげんな見回り",
+});
+export const ENVIRONMENT_EMOTIONS = Object.freeze(Object.keys(ENVIRONMENT_LABELS));
+
+export const EXTRA_DEVICE_LABELS = Object.freeze({...ENVIRONMENT_LABELS, THINKING:"考え中"});
+
+// Keep the original device slot indices stable.
 export const DEVICE_EMOTION_ORDER = Object.freeze([
   "NEUTRAL", "NOTICE", "CURIOUS", "ATTENTIVE", "HAPPY",
   "CELEBRATE", "CONCERN", "ALERT", "RELIEF", "REST",
+  ...Object.keys(EXTRA_DEVICE_LABELS),
 ]);
 
 const EMOTION_ALIASES = Object.freeze({ NOTICE: "ALERT", CURIOUS: "CONCERN" });
 export const EMOTION_ORDER = Object.freeze(
-  DEVICE_EMOTION_ORDER.filter((name) => !Object.hasOwn(EMOTION_ALIASES, name)),
+  DEVICE_EMOTION_ORDER.filter((name) => !Object.hasOwn(EMOTION_ALIASES, name) && !Object.hasOwn(EXTRA_DEVICE_LABELS, name)),
 );
 
 export function resolveEmotion(name) {

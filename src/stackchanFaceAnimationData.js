@@ -35,11 +35,11 @@ export function validateFaceAnimationDesign(design) {
   });
 }
 
-export function upgradeFaceAnimationDesign(design) {
+export function upgradeFaceAnimationDesign(design, defaults) {
   if (!design?.emotions) return null;
   const upgraded={format:FACE_ANIMATION_DESIGN_FORMAT,emotions:{}};
   for (const name of EMOTION_ORDER) {
-    const item=design.emotions[name];
+    const item=design.emotions[name] ?? defaults?.emotions[name];
     if (!item || !Array.isArray(item.frames)) return null;
     upgraded.emotions[name]={playback:item.playback,frames:item.frames.map((frame)=>({
       durationMs:frame.durationMs,preset:upgradePreset(frame.preset),

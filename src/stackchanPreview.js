@@ -1,32 +1,44 @@
 // Browser preview of firmware/src/stack-chan/inari_emote_policy.cpp.
 // This is a visual simulator; feedback is idealized and no device is controlled.
-import { DEVICE_EMOTION_ORDER, EMOTION_ORDER, getEmotion, resolveEmotion } from "./emotionCatalog.js";
+import { DEVICE_EMOTION_ORDER, EXTRA_DEVICE_LABELS, EMOTION_ORDER, getEmotion, resolveEmotion } from "./emotionCatalog.js";
 import { inariEditorLimits, clampAngle, clamp } from "./stackchanMotionMath.js";
 import { editorBounds, visibleStep, motionDraft, motionDraftFilename, FACE_TYPES, STEP_MIN_MS, STEP_MAX_MS, MAX_STEPS } from "./stackchanMotionDraft.js";
 import { baseFacePreset, baseFaceDesign, baseFaceBitmaps, loadBaseFaceDesign } from "./stackchanFaceLibrary.js";
-import { FACE_WIDTH, FACE_HEIGHT, validateFaceDesign, drawFace, packFacePixels, paintPackedFace } from "./stackchanFaceData.js";
+import { FACE_WIDTH, FACE_HEIGHT, validateFaceDesign, drawFace, drawEnvironmentMark, packFacePixels, paintPackedFace, drawFoxWhiskers, drawThinkingSpinner, thinkingSpinnerPhase } from "./stackchanFaceData.js";
 import { createFaceAnimationStudio } from "./stackchanFaceAnimationStudio.js";
 import { createStackchanScene } from "./stackchanScene.js";
-import { createLiveSerial } from "./stackchanLiveSerial.js";
+import { createLiveSerial } from "./stackchanLiveSerial.js?v=3";
 import { createStackchanAudioStudio } from "./stackchanAudioStudio.js?v=2";
 import { alignTracks } from "./stackchanUnifiedTimeline.js";
-import { upgradeFaceAnimationDesign } from "./stackchanFaceAnimationData.js";
-import { TIMELINES, EMOTION_LOOPS, PLANNING_RATES_DPS } from "./stackchanEmotionDesign.js";
+import { defaultFaceAnimationDesign, upgradeFaceAnimationDesign } from "./stackchanFaceAnimationData.js";
+import { TIMELINES, EMOTION_LOOPS, PLANNING_RATES_DPS, REVISED_ENVIRONMENT_EMOTES } from "./stackchanEmotionDesign.js";
+import { announcementIntroTiming, createPreparedAnnouncementAudio, createAnnouncementPhotoPreview,
+  drawAnnouncementPhoto, debugDeerTrigger, announcementFrontPoseReady, announcementDeviceProgress } from "./stackchanAnnouncementPreview.js?v=4";
 
 const $ = (id) => document.getElementById(id);
-const labels = Object.fromEntries(EMOTION_ORDER.map((name) => [name, getEmotion(name).label]));
+const labels = {...Object.fromEntries(EMOTION_ORDER.map((name) => [name, getEmotion(name).label])), ...EXTRA_DEVICE_LABELS};
 export { TIMELINES };
 const LOOPS = new Set(EMOTION_LOOPS);
 const RATE = Object.fromEntries(DEVICE_EMOTION_ORDER.map((name)=>[name,[...PLANNING_RATES_DPS]]));
 let commandRates = null;
 const drafts = Object.fromEntries(DEVICE_EMOTION_ORDER.map((name) => [name, TIMELINES[name].map((part) => ({...part}))]));
-const MOTION_STORE="inari-stackchan-unified-motion-v5";
+const MOTION_STORE="inari-stackchan-unified-motion-v9";
 try {
-  const saved=JSON.parse(localStorage.getItem(MOTION_STORE));
-  if (saved && DEVICE_EMOTION_ORDER.every((name)=>Array.isArray(saved[name]) && saved[name].length>=1 && saved[name].length<=MAX_STEPS &&
+  const current=localStorage.getItem(MOTION_STORE);
+  const hotRange=localStorage.getItem("inari-stackchan-unified-motion-v8");
+  const previous=localStorage.getItem("inari-stackchan-unified-motion-v7");
+  const saved=JSON.parse(current ?? hotRange ?? previous ?? localStorage.getItem("inari-stackchan-unified-motion-v6") ?? localStorage.getItem("inari-stackchan-unified-motion-v5"));
+  if (current === null && saved) {
+    for (const name of REVISED_ENVIRONMENT_EMOTES) delete saved[name];
+  }
+  if (current === null && hotRange === null && previous === null && saved) { delete saved.HOT; delete saved.COLD; }
+  if (saved && Object.keys(saved).every((name)=>DEVICE_EMOTION_ORDER.includes(name) && Array.isArray(saved[name]) && saved[name].length>=1 && saved[name].length<=MAX_STEPS &&
       saved[name].every((part)=>Number.isInteger(part.ms)&&part.ms>=40&&part.ms<=60000&&
         Number.isFinite(part.yaw)&&Number.isFinite(part.pitch)&&FACE_TYPES.includes(part.face))))
-    for (const name of DEVICE_EMOTION_ORDER) drafts[name]=saved[name];
+    for (const name of Object.keys(saved)) drafts[name]=saved[name];
+  if (current === null && hotRange === null && previous !== null) {
+    for (const step of drafts.HOT) step.pitch=clamp(step.pitch,(19-30)/4,(27-30)/4);
+  }
 } catch { /* Keep defaults. */ }
 const saveMotions=()=>{try{localStorage.setItem(MOTION_STORE,JSON.stringify(drafts));}catch{ /* session remains editable */ }};
 const stepsFor = (name) => drafts[name];
@@ -85,6 +97,21 @@ $("exportDraft").addEventListener("click", () => {
   }
 });
 
+$("exportCurrentEmote").addEventListener("click", () => {
+  try {
+    const name = currentEmotion;
+    downloadJson(`inari-stackchan-${name.toLowerCase()}-emote.json`, {
+      format: "inari-stackchan-emote-v1",
+      emotion: name,
+      motion: motionDraft(name, stepsFor(name), LOOPS, limits),
+      faceAnimations: faceAnimationStudio.exportBitmaps([name]),
+      faceAnimationDesign: faceAnimationStudio.design().emotions[name],
+    });
+  } catch (error) {
+    $("motionStatus").textContent = error.message;
+  }
+});
+
 function downloadJson(name, body) {
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob([JSON.stringify(body,null,2)],{type:"application/json"}));
@@ -125,15 +152,22 @@ $("importDesignFile").addEventListener("change",async(event)=>{
   try {
     if(file.size>8*1024*1024) throw new RangeError("JSONは8 MB以下にしてください。");
     const bundle=JSON.parse(await file.text());
-    if(bundle.format!=="inari-stackchan-design-v2" || !Array.isArray(bundle.motions) || bundle.motions.length!==DEVICE_EMOTION_ORDER.length)
+    if(bundle.format!=="inari-stackchan-design-v2" || !Array.isArray(bundle.motions) || ![DEVICE_EMOTION_ORDER.length, DEVICE_EMOTION_ORDER.length - 1, DEVICE_EMOTION_ORDER.length - Object.keys(EXTRA_DEVICE_LABELS).length].includes(bundle.motions.length))
       throw new RangeError("対応する形式の実機用JSONを選んでください。");
-    const faceDesign=upgradeFaceAnimationDesign(bundle.faceAnimationDesign);
+    const faceDesign=upgradeFaceAnimationDesign(bundle.faceAnimationDesign, defaultFaceAnimationDesign(TIMELINES, EMOTION_LOOPS, baseFacePreset));
     if(!faceDesign) throw new RangeError("顔アニメーションを読み込めません。");
     if (bundle.faceDesign && !validateFaceDesign(bundle.faceDesign))
       throw new RangeError("基本顔の編集設定を確認してください。");
     const imported={};
     for(const name of DEVICE_EMOTION_ORDER) {
       const motion=bundle.motions.find((item)=>item.emotion===name);
+      const legacyBase = bundle.motions.length === DEVICE_EMOTION_ORDER.length - Object.keys(EXTRA_DEVICE_LABELS).length;
+      const legacyWithoutThinking = bundle.motions.length === DEVICE_EMOTION_ORDER.length - 1;
+      if (!motion && ((legacyBase && Object.hasOwn(EXTRA_DEVICE_LABELS, name)) ||
+          (legacyWithoutThinking && name === "THINKING"))) {
+        imported[name] = TIMELINES[name].map((part) => ({...part}));
+        continue;
+      }
       if(!motion || motion.format!=="inari-stackchan-motion-v1" || !Array.isArray(motion.steps) ||
           motion.steps.length<1 || motion.steps.length>24 || !["loop","once"].includes(motion.playback))
         throw new RangeError(`${name} の首と顔の設定を確認してください。`);
@@ -158,7 +192,7 @@ $("importDesignFile").addEventListener("change",async(event)=>{
       for(const name of DEVICE_EMOTION_ORDER) drafts[name]=previous[name];
       throw error;
     }
-    for(const name of DEVICE_EMOTION_ORDER) bundle.motions.find((item)=>item.emotion===name).playback==="loop"?LOOPS.add(name):LOOPS.delete(name);
+    for(const name of DEVICE_EMOTION_ORDER) faceDesign.emotions[name].playback==="loop"?LOOPS.add(name):LOOPS.delete(name);
     if (bundle.faceDesign) loadBaseFaceDesign(bundle.faceDesign);
     faceAnimationStudio.importDesign(faceDesign);
     saveMotions();
@@ -225,14 +259,19 @@ profileForm.addEventListener("submit", updateLimits);
 const speakingCanvas=document.createElement("canvas"); speakingCanvas.width=FACE_WIDTH; speakingCanvas.height=FACE_HEIGHT;
 const speakingCtx=speakingCanvas.getContext("2d",{willReadFrequently:true});
 let speaking=false, mouthOpen=0, lastMouthAt=-1000;
-function faceCanvas() { return speaking ? speakingCanvas : faceAnimationStudio.canvasAt(currentEmotion,episodeMs,audioStudio.isBgmPlaying()); }
+let deerPhotoCanvas = null;
+function faceCanvas() { return deerPhotoCanvas ?? (speaking ? speakingCanvas : faceAnimationStudio.canvasAt(currentEmotion,previewFaceTime(),!deerPhase && audioStudio.isBgmPlaying())); }
 function updateSpeech(now) {
   if (!speaking || now-lastMouthAt<150) return false;
   lastMouthAt=now;
   mouthOpen=[25,75,45,95,0,65][Math.floor(now/150)%6];
   drawFace(speakingCtx,faceAnimationStudio.presetAt(currentEmotion,episodeMs,audioStudio.isBgmPlaying()),mouthOpen);
+  if (currentEmotion !== "THINKING") drawEnvironmentMark(speakingCtx,currentEmotion,
+    faceAnimationStudio.frameIndexAt(currentEmotion,episodeMs,audioStudio.isBgmPlaying()));
   const pixels=packFacePixels(speakingCtx.getImageData(0,0,FACE_WIDTH,FACE_HEIGHT).data);
   paintPackedFace(speakingCtx,pixels);
+  drawFoxWhiskers(speakingCtx);
+  if (currentEmotion==="THINKING") drawThinkingSpinner(speakingCtx,thinkingSpinnerPhase(episodeMs));
   return true;
 }
 function renderFace(type) {
@@ -244,56 +283,75 @@ function renderFace(type) {
 let currentEmotion = "NEUTRAL", index = 0, cycle = 0, elapsed = 0, episodeMs = 0;
 let yaw = 0, pitch = 30, neckActive = true, paused = false, finished = false;
 let faceType = "neutral", displayedFace = null, lastFrame = 0;
-let deerPhase = null, deerSpeech = null;
-let deerMessage = "";
-const deerTimeFormat = new Intl.DateTimeFormat("ja-JP", {
-  timeZone: "Asia/Tokyo", hour: "numeric", minute: "numeric", hourCycle: "h23",
-});
-
-function deerPreviewMessage(pressedAt) {
-  const parts = deerTimeFormat.formatToParts(pressedAt);
-  const hour = Number(parts.find((part) => part.type === "hour").value);
-  const minute = Number(parts.find((part) => part.type === "minute").value);
-  return `${hour}時${minute}分、テスト畑のカメラに鹿が写っていたよ。畑の様子を確認して！`;
+let deerPhase = null;
+let deerTrigger = null;
+const deerSpeech = createPreparedAnnouncementAudio();
+const deerPhoto = createAnnouncementPhotoPreview();
+function deerIntroTiming() {
+  return announcementIntroTiming(stepsFor("ALERT"),faceAnimationStudio.design().emotions.ALERT.frames,episodeMs);
 }
-
-function clearDeerSpeech() {
-  if (deerSpeech) {
-    deerSpeech = null;
-    window.speechSynthesis.cancel();
-  }
+function previewFaceTime() {
+  return currentEmotion === "ALERT" && ["alert", "hold", "speech-starting"].includes(deerPhase)
+    ? deerIntroTiming().faceElapsedMs : episodeMs;
+}
+function resetDeerMouth() {
   speaking = false;
   mouthOpen = 0;
   lastMouthAt = -1000;
   $("speakToggle").setAttribute("aria-pressed", "false");
   $("speakToggle").textContent = "口パク";
 }
-
+function clearDeerPhoto() {
+  deerPhoto.clear();
+  deerPhotoCanvas = null;
+  $("faceSelectionOverlay").style.visibility = "";
+  document.querySelector(".face-safe-guide").style.visibility = "";
+  displayedFace = null;
+}
+function clearDeerSpeech() { deerSpeech.clear(); clearDeerPhoto(); resetDeerMouth(); }
+function showDeerPhoto() {
+  clearDeerSpeech();
+  finished = true; deerPhase = "photo-loading";
+  $("deerStatus").textContent = "読み上げが終わり、検知画像を準備しています。";
+  deerPhoto.show(deerTrigger, {
+    onShown(image) {
+      const photoCanvas = document.createElement("canvas");
+      drawAnnouncementPhoto(image, photoCanvas, $("faceAnimationPreview"));
+      deerPhotoCanvas = photoCanvas; deerPhase = "photo";
+      $("faceSelectionOverlay").style.visibility = "hidden";
+      document.querySelector(".face-safe-guide").style.visibility = "hidden";
+      displayedFace = renderFace(faceType);
+      $("motionStatus").textContent = "検知画像 · 30秒表示";
+      $("deerStatus").textContent = "検知画像を表示しています。30秒後に待機へ戻ります。";
+    },
+    onFinished() {
+      play("NEUTRAL");
+      $("deerStatus").textContent = "画像表示が終わり、待機へ戻りました。";
+    },
+    onError() {
+      play("NEUTRAL");
+      $("deerStatus").textContent = "検知画像を表示できませんでした。待機へ戻りました。";
+    },
+  });
+}
 function speakDeerPreview() {
   const finish = (message) => {
-    deerSpeech = null;
     clearDeerSpeech();
     finished = true;
     $("deerStatus").textContent = message;
-    $("motionStatus").textContent = "CONCERN · 表情を保持";
+    $("motionStatus").textContent = `${currentEmotion} · 表情を保持`;
   };
-  const message = deerMessage;
-  $("deerStatus").textContent = message;
-  if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
-    finish(`音声なし · ${message}`);
-    return;
-  }
-  const utterance = new SpeechSynthesisUtterance(message);
-  utterance.lang = "ja-JP";
-  deerSpeech = utterance;
-  utterance.onstart = () => { if (deerSpeech === utterance) speaking = true; };
-  utterance.onend = () => {
-    if (deerSpeech === utterance) finish("Webの読み上げが完了しました。");
-  };
-  utterance.onerror = () => {
-    if (deerSpeech === utterance) finish(`音声なし · ${message}`);
-  };
-  window.speechSynthesis.speak(utterance);
+  deerPhase = "speech-starting";
+  deerSpeech.play({
+    onStarted() {
+      play("CONCERN", {deer: "concern"});
+      speaking = true;
+      $("motionStatus").textContent = "CONCERN · 読み上げ";
+      $("deerStatus").textContent = "準備済みの音声を読み上げています。";
+    },
+    onEnded: showDeerPhoto,
+    onError: () => finish("読み上げ音声を再生できませんでした。"),
+  });
 }
 
 function startStep() {
@@ -306,12 +364,13 @@ function play(requestedName, {deer = null} = {}) {
   const name = resolveEmotion(requestedName);
   if (!TIMELINES[name] || !limits) return;
   if (deerPhase && !deer) $("deerStatus").textContent = "知らせる → 心配の顔で読み上げ";
-  if (deerPhase || deer) clearDeerSpeech();
+  if (!deer) clearDeerSpeech();
+  else resetDeerMouth();
   deerPhase = deer;
   $("speakToggle").disabled = Boolean(deer);
   currentEmotion = name;
   index = cycle = episodeMs = 0;
-  yaw = clampAngle(0, limits.yaw); pitch = clampAngle(30, limits.pitch);
+  if (deer !== "concern") { yaw = clampAngle(0, limits.yaw); pitch = clampAngle(30, limits.pitch); }
   neckActive = deer !== "concern"; paused = false; finished = false;
   $("pauseButton").textContent = "Ⅱ 一時停止";
   $("motionStatus").textContent = "再生中";
@@ -329,42 +388,47 @@ function play(requestedName, {deer = null} = {}) {
 }
 function advance(dt) {
   if (paused) return;
-  if (!finished && deerPhase !== "return") episodeMs += dt;
-  if (!deerPhase || deerPhase === "alert") audioStudio.onTime(currentEmotion,episodeMs);
-  if (neckActive && episodeMs >= 30000) {
+  if (!finished && deerPhase !== "speech-starting") episodeMs += dt;
+  const introActive = currentEmotion === "ALERT" && ["alert", "hold", "speech-starting"].includes(deerPhase);
+  if (!deerPhase || introActive) audioStudio.onTime(currentEmotion,episodeMs);
+  if (neckActive && episodeMs >= 30000 && !introActive) {
     neckActive=false;
     $("motionStatus").textContent="首は30秒で安全停止 · 最初から再生で再開";
   }
   const steps=stepsFor(currentEmotion), total=steps.reduce((sum,part)=>sum+part.ms,0);
-  if (deerPhase === "alert" && episodeMs >= total) {
-    episodeMs = total - 1;
-    deerPhase = "return";
-    neckActive = false;
-    $("motionStatus").textContent = "ALERT · 正面へ復帰";
-    $("deerStatus").textContent = "正面に戻り、音が終わってから読み上げます。";
+  const intro = introActive ? deerIntroTiming() : null;
+  if (deerPhase === "alert" && intro.ready) {
+    deerPhase = "hold";
+    $("motionStatus").textContent = "ALERT · 4コマ目を保持";
+    $("deerStatus").textContent = "知らせるの音が終わるまで待っています。";
   }
-  const looping=LOOPS.has(currentEmotion)||audioStudio.isBgmPlaying();
-  if (!finished && !looping && episodeMs>=total) {
+  const looping=!introActive && (LOOPS.has(currentEmotion)||audioStudio.isBgmPlaying());
+  if (!introActive && !finished && !looping && episodeMs>=total) {
     episodeMs=total;finished=true;$("motionStatus").textContent="再生終了 · 表情を保持";
   }
-  const timelineTime=looping&&!finished?episodeMs%total:Math.min(episodeMs,total-1);
+  const timelineTime=intro ? intro.motionElapsedMs : looping&&!finished?episodeMs%total:Math.min(episodeMs,total-1);
   const nextCycle=looping&&!finished?Math.floor(episodeMs/total):0;
   let offset=0,nextIndex=steps.length-1;
   for (let i=0;i<steps.length;i++) {offset+=steps[i].ms;if(timelineTime<offset){nextIndex=i;break;}}
   if (nextIndex!==index||nextCycle!==cycle){index=nextIndex;cycle=nextCycle;startStep();}
   const part=steps[index];
-  const targetYaw=neckActive&&!finished?clampAngle(part.yaw*4,limits.yaw):0;
-  const targetPitch=neckActive&&!finished?clampAngle(30+part.pitch*4,limits.pitch):30;
+  const targetYaw=deerPhase === "concern" ? yaw : neckActive&&!finished?clampAngle(part.yaw*4,limits.yaw):0;
+  const targetPitch=deerPhase === "concern" ? pitch : neckActive&&!finished?clampAngle(30+part.pitch*4,limits.pitch):30;
   const [yawRate,pitchRate]=RATE[currentEmotion];
   yaw+=clamp(targetYaw-yaw,-yawRate*dt/1500,yawRate*dt/1500);
   pitch+=clamp(targetPitch-pitch,-pitchRate*dt/1500,pitchRate*dt/1500);
-  if (deerPhase === "return" && !audioStudio.isSoundPending() &&
-      Math.abs(yaw) < 0.01 && Math.abs(pitch - 30) < 0.01) {
-    play("CONCERN", {deer: "concern"});
-    $("motionStatus").textContent = "CONCERN · 読み上げ";
+  if (deerPhase === "centering" && announcementFrontPoseReady(yaw, pitch)) {
+    faceAnimationStudio.followPlayback();
+    setPreviewVisible(true);
+    play("ALERT", {deer: "alert"});
+    $("deerStatus").textContent = "首が正面へ戻り、知らせるの動きと音を再生しています。";
+  }
+  if (deerPhase === "hold" && !audioStudio.isIntroSoundPending() &&
+      Math.abs(yaw - targetYaw) < 0.01 && Math.abs(pitch - targetPitch) < 0.01) {
     speakDeerPreview();
   }
 }
+
 function paint(now) {
   const dt = Math.min(100, Math.max(0, now-lastFrame || 0)); lastFrame = now;
   if (!limits) { requestAnimationFrame(paint); return; }
@@ -372,7 +436,7 @@ function paint(now) {
   const speechChanged=updateSpeech(now);
   const visibleCanvas=faceCanvas(faceType);
   if (visibleCanvas !== displayedFace || speechChanged) displayedFace=renderFace(faceType);
-  faceAnimationStudio.updatePreview(currentEmotion,episodeMs,audioStudio.isBgmPlaying());
+  if (!deerPhotoCanvas) faceAnimationStudio.updatePreview(currentEmotion,previewFaceTime(),!deerPhase && audioStudio.isBgmPlaying());
   // The physical axes rotate the head; the camera angle is independent.
   stackchanScene.setPose(yaw,pitch);
   liveSerial.tick(now);
@@ -381,49 +445,54 @@ function paint(now) {
   requestAnimationFrame(paint);
 }
 
-for (const name of EMOTION_ORDER) {
+for (const name of Object.keys(labels)) {
   const button = document.createElement("button");
   button.type = "button"; button.dataset.emotion = name;
   button.innerHTML = `${name}<small>${labels[name]}</small>`;
   button.addEventListener("click", () => { faceAnimationStudio.followPlayback(); play(name); });
   $("emotionButtons").append(button);
 }
-$("deerPreview").addEventListener("click", () => {
+$("deerPreview").addEventListener("click", async () => {
   if (!limits) return;
-  if (!$("serialStop").disabled) {
-    $("deerStatus").textContent = "USBの実機プレビューを終了してから試してください。";
-    return;
-  }
-  deerMessage = deerPreviewMessage(Date.now());
-  faceAnimationStudio.followPlayback();
-  setPreviewVisible(true);
-  play("ALERT", {deer: "alert"});
-  $("deerStatus").textContent = "知らせるの動きと登録した音を再生します。";
+  const button = $("deerPreview");
+  clearDeerSpeech();
+  audioStudio.stop();
+  deerPhase = "preparing"; finished = true; paused = false; button.disabled = true;
+  $("deerStatus").textContent = "読み上げ音声を準備しています。準備後にALERTを始めます。";
+  try {
+    await liveSerial.stopForAnnouncement();
+    deerTrigger = debugDeerTrigger();
+    await deerSpeech.prepare(deerTrigger);
+    if (deerPhase !== "preparing") return;
+    deerPhase = "centering";
+    $("deerStatus").textContent = "音声の準備が完了し、首を正面へ向けています。";
+  } catch (error) {
+    if (deerPhase === "preparing") {
+      deerPhase = null;
+      $("speakToggle").disabled = false;
+      $("deerStatus").textContent = error.name === "AbortError" ? "音声の準備を中止しました。" : error.message;
+    }
+  } finally { button.disabled = false; }
 });
 $("deerDevice").addEventListener("click", async () => {
-  const capturedAtMs = Date.now();
   const button = $("deerDevice");
   const status = $("deerDeviceStatus");
-  if (!$("serialStop").disabled) {
-    status.textContent = "USBの実機プレビューを終了してから試してください。";
-    return;
-  }
-  if (deerPhase && !finished) {
-    status.textContent = "Webでの再生が終わってから試してください。";
-    return;
-  }
   button.disabled = true;
   status.textContent = "実機へ鹿の検知テストを送信中…";
   try {
+    await liveSerial.stopForAnnouncement();
+    clearDeerSpeech(); audioStudio.stop();
+    deerPhase = null; finished = true; paused = false;
     const route = "/api/inari/debug/deer";
+    const trigger = debugDeerTrigger();
     const response = await fetch(route, {
-      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({capturedAtMs}),
-      signal: AbortSignal.timeout(8000),
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(trigger),
+      signal: AbortSignal.timeout(20000),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error);
-    status.textContent = "実機へ送信しました。再生の完了を待っています。";
-    const expires = performance.now() + 120000;
+    status.textContent = announcementDeviceProgress(result.status);
+    const expires = performance.now() + 2100000;
     while (performance.now() < expires) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       const reply = await fetch(`${route}/${encodeURIComponent(result.announcementId)}`, {
@@ -431,7 +500,10 @@ $("deerDevice").addEventListener("click", async () => {
       });
       const outcome = await reply.json();
       if (!reply.ok) throw new Error(outcome.error);
-      if (outcome.status === "pending") continue;
+      if (["queued", "pending", "started"].includes(outcome.status)) {
+        status.textContent = announcementDeviceProgress(outcome.status);
+        continue;
+      }
       const reasons = {
         busy: "実機が動作中でした",
         stale: "通知の有効期限が切れました",
@@ -440,6 +512,7 @@ $("deerDevice").addEventListener("click", async () => {
         connection_lost: "実機との接続が切れました",
         user_stopped: "本体で停止されました",
         superseded: "別の通知に切り替わりました",
+        delivery_unknown: "送信結果を確認できませんでした。実機を確認してください",
       };
       status.textContent = outcome.status === "completed" && !outcome.reason
         ? "実機で知らせる → 心配の読み上げが完了しました。"
@@ -460,9 +533,10 @@ $("replayButton").addEventListener("click", () => {
 });
 $("pauseButton").addEventListener("click", () => {
   paused = !paused;
-  if (deerSpeech) {
-    if (paused) window.speechSynthesis.pause();
-    else window.speechSynthesis.resume();
+  if (deerPhase === "concern") {
+    if (paused) deerSpeech.pause();
+    else deerSpeech.resume();
+    speaking = !paused;
   }
   $("pauseButton").textContent = paused ? "▶ 再生" : "Ⅱ 一時停止";
   $("motionStatus").textContent = paused ? "一時停止中" : "再生中";
@@ -551,10 +625,20 @@ const audioStudio=createStackchanAudioStudio({
   },
 });
 let lastMeasuredPose=null,observedYawPeak=0,observedPitchPeak=0;
-const liveSerial=createLiveSerial(()=>({
-  yaw:Math.round(yaw*10),pitch:Math.round(pitch*10),mouthOpen:speaking?mouthOpen:0,
-  face:faceAnimationStudio.presetAt(currentEmotion,episodeMs,audioStudio.isBgmPlaying()),
-}),(profile)=>{
+const liveSerial=createLiveSerial((supportsMarks,supportsFoxFace)=>{
+  const loop=audioStudio.isBgmPlaying();
+  const face=faceAnimationStudio.presetAt(currentEmotion,episodeMs,loop);
+  const frame=faceAnimationStudio.frameIndexAt(currentEmotion,episodeMs,loop);
+  if (!supportsFoxFace && face.eyeMode==="fox") face.eyeMode="ellipse";
+  const thinking=currentEmotion==="THINKING";
+  const phase=faceAnimationStudio.isOverriding() ? frame%8 : thinkingSpinnerPhase(episodeMs);
+  return {
+    yaw:Math.round(yaw*10),pitch:Math.round(pitch*10),mouthOpen:speaking?mouthOpen:0,face,
+    spinner:thinking && supportsFoxFace ? phase : undefined,
+    mark:supportsMarks && !(thinking && supportsFoxFace)
+      ? faceAnimationStudio.markAt(currentEmotion,thinking?phase:frame) : undefined,
+  };
+},(profile)=>{
   const bounds=[profile.yawMinTenths,profile.yawMaxTenths,profile.pitchMinTenths,profile.pitchMaxTenths];
   if(bounds.every(Number.isFinite)&&bounds[0]<bounds[1]&&bounds[2]<bounds[3]) {
     limits={yaw:{minDeg:bounds[0]/10,maxDeg:bounds[1]/10},pitch:{minDeg:bounds[2]/10,maxDeg:Math.min(30,bounds[3]/10)},measured:true};

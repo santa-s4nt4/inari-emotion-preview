@@ -1,16 +1,16 @@
 import { FACE_TYPES } from "./stackchanMotionDraft.js";
 import {
   FACE_WIDTH, FACE_HEIGHT, FACE_FORMAT, FACE_ENCODING, FACE_DESIGN_FORMAT, DEFAULT_FACE_PRESETS,
-  defaultPresets, validatePreset, validateFaceDesign, drawFace, packFacePixels, paintPackedFace, encodeBase64,
+  defaultPresets, validatePreset, validateFaceDesign, drawFace, packFacePixels, paintPackedFace, encodeBase64, drawFoxWhiskers,
   EYE_MODES, MOUTH_MODES, SWEAT_MODES, BROW_SIDES,
 } from "./stackchanFaceData.js";
 
 const STORAGE_KEY = "inari-stackchan-face-presets-v1";
 const $ = (id) => document.getElementById(id);
 export const FACE_FIELDS = [
-  ["eyeMode", "目の形", EYE_MODES, ["丸い目", "楕円", "見開く", "閉じる", "笑う目"]],
+  ["eyeMode", "目の形", EYE_MODES, ["丸い目", "楕円", "見開く", "閉じる", "笑う目", "ツリ目"]],
   ["eyeRadius", "目の大きさ", 4, 18],
-  ["eyeWidth", "楕円の幅", 6, 36], ["eyeHeight", "楕円の高さ", 8, 42],
+  ["eyeWidth", "目の幅", 6, 36], ["eyeHeight", "目の高さ（形）", 8, 42],
   ["eyeY", "目の高さ", 70, 125],
   ["leftEyeOffsetY", "左目の上下", -25, 25], ["rightEyeOffsetY", "右目の上下", -25, 25],
   ["eyeSpacing", "目の間隔", 100, 170],
@@ -64,6 +64,7 @@ export function createFaceStudio(onChange) {
     drawFace(ctx, presets[name]);
     const pixels = packFacePixels(ctx.getImageData(0,0,FACE_WIDTH,FACE_HEIGHT).data);
     paintPackedFace(ctx, pixels);
+    drawFoxWhiskers(ctx);
     const image = {canvas, pixels};
     rendered.set(name, image);
     return image;

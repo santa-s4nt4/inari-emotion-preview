@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="../stackchan-audio-studio.css?v=1" />
   <link rel="stylesheet" href="../stackchan-workspace.css?v=1" />
   <script type="importmap">{"imports":{"three":"../assets/stackchan3d/vendor/three.module.js","three/addons/loaders/GLTFLoader.js":"../assets/stackchan3d/vendor/loaders/GLTFLoader.js","three/addons/controls/OrbitControls.js":"../assets/stackchan3d/vendor/controls/OrbitControls.js"}}</script>
-  <script type="module" src="../src/stackchanPreview.js?v=9"></script>
+  <script type="module" src="../src/stackchanPreview.js?v=22"></script>
 </head>
 <body>
   <header class="topbar">
@@ -50,10 +50,10 @@
         <button type="button" data-tool-tab="profile" aria-selected="false">モーター</button>
       </nav>
       <section class="block tool-panel" data-tool-panel="emotion">
-        <div class="block-heading"><span>EMOTION</span><h1>表情と首の動き</h1><p>実機のINARIタイムラインに合わせて8種類を確認します。</p></div>
+        <div class="block-heading"><span>EMOTION</span><h1>表情と首の動き</h1><p>表情と首の動きを選んで再生できます。</p></div>
         <div id="emotionButtons" class="emotion-buttons" role="group" aria-label="感情を選択"></div>
         <div class="face-actions">
-          <button id="deerPreview" type="button">鹿を発見・Webで再生</button>
+          <button id="deerPreview" disabled title="ローカル版の会話サーバーが必要です" type="button">鹿を発見・Webで再生</button>
           <button id="deerDevice" disabled title="ローカル版で利用できます" type="button">鹿を発見・実機で再生</button>
         </div>
         <p id="deerStatus" class="face-status" role="status">知らせる → 心配の顔で読み上げ</p>
@@ -61,7 +61,7 @@
       </section><section class="block editor-block tool-panel" data-tool-panel="motion" hidden>
         <div class="block-heading"><span>MOTION EDITOR</span><h2>首の動き</h2><p>中央の共通タイムラインで顔と首の角度を同時に編集します。到達時間も各コマに表示します。</p></div>
         <div class="editor-table-wrap"><table class="editor-table"><thead><tr><th>STEP</th><th>時間 ms</th><th>左右 °</th><th>上下 °</th><th>表情</th><th></th></tr></thead><tbody id="editorRows"></tbody></table></div>
-        <div class="editor-actions"><button id="addStep" type="button">＋ ステップ</button><button id="resetEmotion" type="button">元に戻す</button><button id="exportDraft" type="button">JSONを書き出す</button></div>
+        <div class="editor-actions"><button id="addStep" type="button">＋ ステップ</button><button id="resetEmotion" type="button">元に戻す</button><button id="exportDraft" type="button">首のJSONを書き出す</button><button id="exportCurrentEmote" type="button">このエモートを書き出す</button></div>
         <p class="editor-note">選択中の感情だけをJSONに書き出します。実機に適用する前に、実測のサーボ範囲と動きを確認してください。</p>
       </section><section class="block tool-panel" data-tool-panel="jev" hidden>
         <div class="block-heading"><span>JEV CHOICE</span><h2>状況から選ぶ</h2><p>判定だけ既存のサーバー側Jevを使用します。選んだ感情で同じプレビューを再生します。</p></div>

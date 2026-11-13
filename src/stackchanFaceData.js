@@ -5,7 +5,7 @@ export const FACE_HEIGHT = 240;
 export const FACE_FORMAT = "inari-stackchan-faces-v1";
 export const FACE_ENCODING = "mono-msb-row-major-v1";
 export const FACE_DESIGN_FORMAT = "inari-stackchan-face-design-v2";
-export const EYE_MODES = Object.freeze(["dot", "ellipse", "wide", "closed", "smile"]);
+export const EYE_MODES = Object.freeze(["dot", "ellipse", "wide", "closed", "smile", "fox"]);
 export const MOUTH_MODES = Object.freeze(["line", "smile", "open", "tiny"]);
 export const SWEAT_MODES = Object.freeze(["none", "left", "right"]);
 export const BROW_SIDES = Object.freeze(["none", "left", "right", "both"]);
@@ -32,7 +32,7 @@ export const DEFAULT_FACE_PRESETS = Object.freeze({
   happy: withBase({ eyeMode: "smile", eyeRadius: 13, mouthMode: "smile", mouthWidth: 54 }),
   celebrate: withBase({ eyeMode: "smile", eyeRadius: 15, mouthMode: "smile", mouthWidth: 68 }),
   concern: withBase({ eyeRadius: 9, eyeY: 100, browSide: "both", browY: 66, browLeftTilt: 10, browRightTilt: -10, mouthMode: "open", mouthWidth: 28, mouthHeight: 12, sweat: "left" }),
-  alert: withBase({ eyeMode: "wide", eyeRadius: 12, browSide: "both", browY: 63, browThickness: 2, mouthMode: "open", mouthWidth: 30, mouthHeight: 13 }),
+  alert: withBase({ eyeMode: "dot", eyeRadius: 12, browSide: "both", browY: 63, browThickness: 2, mouthMode: "open", mouthWidth: 30, mouthHeight: 13 }),
   relief: withBase({ eyeMode: "closed", mouthMode: "smile", mouthWidth: 42 }),
   rest: withBase({ eyeMode: "closed", eyeY: 102, mouthWidth: 32, mouthY: 153 }),
 });
@@ -95,6 +95,16 @@ export function drawFace(ctx, preset, mouthOpen = 0) {
       const width = preset.eyeMode === "ellipse" ? preset.eyeWidth/2 : preset.eyeMode === "wide" ? Math.round(r*0.82) : r;
       const height = preset.eyeMode === "ellipse" ? preset.eyeHeight/2 : preset.eyeMode === "wide" ? Math.round(r*1.35) : r;
       ctx.ellipse(x, y, width, height, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (preset.eyeMode === "fox") {
+      const direction = index === 0 ? 1 : -1;
+      const rx = Math.floor(preset.eyeWidth / 2);
+      const ry = Math.floor(preset.eyeHeight / 2);
+      ctx.moveTo(x - direction * rx, y - ry);
+      ctx.lineTo(x + direction * rx, y + Math.floor(ry / 2));
+      ctx.lineTo(x + direction * Math.floor(rx / 3), y + ry);
+      ctx.lineTo(x - direction * Math.floor(rx / 2), y + Math.floor(ry / 3));
+      ctx.closePath();
       ctx.fill();
     } else if (preset.eyeMode === "closed") {
       ctx.fillRect(Math.round(x-r), Math.round(y-2), r*2, 4);
@@ -176,4 +186,180 @@ export function encodeBase64(pixels) {
   let binary = "";
   for (let i = 0; i < pixels.length; i++) binary += String.fromCharCode(pixels[i]);
   return btoa(binary);
+}
+
+const MARK_BOUNDS = {x:240, y:12, width:72, height:160};
+const COLD_MARK_BOUNDS = {x:168, y:40, width:112, height:104};
+const THINKING_SPINNER_BOUNDS = {x:248, y:14, width:64, height:50};
+const SPINNER_OFFSETS = [[0,-16],[11,-11],[16,0],[11,11],[0,16],[-11,11],[-16,0],[-11,-11]];
+const SPINNER_RADII = [4.5,4,3.5,3,2.5,2,1.5,1];
+const SPINNER_GREYS = ["#505050","#656565","#787878","#8b8b8b","#a0a0a0","#b6b6b6","#ccc","#e0e0e0"];
+
+export function thinkingSpinnerPhase(elapsedMs) {
+  return Math.floor(elapsedMs / 100) % SPINNER_OFFSETS.length;
+}
+
+export function drawThinkingSpinner(ctx, phase, mono = false) {
+  ctx.save();
+  for (let index = 0; index < SPINNER_OFFSETS.length; index++) {
+    const [x,y] = SPINNER_OFFSETS[index];
+    const tail = (phase - index + SPINNER_OFFSETS.length) % SPINNER_OFFSETS.length;
+    ctx.fillStyle = mono ? "#000" : SPINNER_GREYS[tail];
+    ctx.beginPath();
+    ctx.arc(280 + x, 39 + y, SPINNER_RADII[tail], 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+export function drawFoxWhiskers(ctx) {
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
+  ctx.strokeStyle = "#929292";
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = "round";
+  for (const side of [1,-1]) {
+    const x = (value) => side === 1 ? value : FACE_WIDTH - value;
+    ctx.beginPath();
+    for (const [x1,y1,x2,y2] of [[66,133,39,123],[64,140,34,139],[66,147,42,156]]) {
+      ctx.moveTo(x(x1), y1);
+      ctx.lineTo(x(x2), y2);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+const CAPTION_BOUNDS = {x:120, y:8, width:192, height:48};
+
+export function environmentMarkBounds(emotion) {
+  if (emotion === "THINKING") return THINKING_SPINNER_BOUNDS;
+  if (emotion === "CHEERFUL") return CAPTION_BOUNDS;
+  if (emotion === "COLD") return COLD_MARK_BOUNDS;
+  if (["HOT","DRY_SOIL","WET_SOIL","DRY_AIR","HUMID_AIR"].includes(emotion)) return MARK_BOUNDS;
+  return null;
+}
+
+// Use the same LCD coordinates for the preview, exported frames and USB mask.
+export function drawEnvironmentMark(ctx, emotion, frameIndex) {
+  if (!environmentMarkBounds(emotion)) return;
+  if (emotion === "THINKING") {
+    drawThinkingSpinner(ctx, frameIndex % SPINNER_OFFSETS.length, true);
+    return;
+  }
+  const sway = [0, 3, 0, -3][frameIndex % 4];
+  ctx.save();
+  ctx.translate(274, 34);
+  ctx.fillStyle = ctx.strokeStyle = "#000";
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  const line = (points) => {
+    ctx.beginPath();
+    ctx.moveTo(...points[0]);
+    for (const point of points.slice(1)) ctx.lineTo(...point);
+    ctx.stroke();
+  };
+  const drop = (x, y, size) => {
+    ctx.beginPath();
+    ctx.moveTo(x, y-size);
+    ctx.bezierCurveTo(x+size, y, x+size, y+size, x, y+size);
+    ctx.bezierCurveTo(x-size, y+size, x-size, y, x, y-size);
+    ctx.fill();
+  };
+  switch (emotion) {
+    case "COLD": {
+      const top = frameIndex % 2 ? 14 : 11;
+      line([[-21+sway,top],[-21+sway,top+17]]);
+      line([[-12+sway,top],[-12+sway,top+24]]);
+      line([[-3+sway,top],[-3+sway,top+24]]);
+
+      const dripLength = [0, 7, 15, 25, 18, 9, 0, 0][frameIndex % 8];
+      if (dripLength) {
+        const x = -96, y = 82;
+        const width = Math.min(7, 2 + dripLength/5);
+        ctx.beginPath();
+        ctx.moveTo(x,y);
+        ctx.bezierCurveTo(x+width,y+dripLength*0.45,x+width,y+dripLength,x,y+dripLength);
+        ctx.bezierCurveTo(x-width,y+dripLength,x-width,y+dripLength*0.45,x,y);
+        ctx.fill();
+      }
+      break;
+    }
+    case "HOT":
+      drop(-18, 11 + (frameIndex * 19) % 102, 7);
+      drop(0, 11 + (frameIndex * 19 + 34) % 102, 9);
+      drop(19, 11 + (frameIndex * 19 + 68) % 102, 6);
+      break;
+    case "HUMID_AIR": {
+      const fall = [0, 9, 15, 6][frameIndex % 4];
+      drop(-16 + sway, 12 + fall, 7);
+      drop(0 + sway, 4 + fall, 9);
+      drop(18 + sway, 17 + fall, 6);
+      break;
+    }
+    case "DRY_SOIL": {
+      const dip = [0, 10, 16, 16, 12, 16, 6, 0][frameIndex % 8];
+      ctx.translate(0, dip);
+      line([[0,-13],[0,12]]);
+      line([[-11,2],[0,13],[11,2]]);
+      break;
+    }
+    case "WET_SOIL": {
+      const impact = frameIndex === 2 || frameIndex === 4 || frameIndex === 6;
+      const rise = impact ? 12 : 0;
+      drop(-16-rise/2, 3-rise, impact ? 6 : 4);
+      drop(0, -2-rise, impact ? 7 : 4);
+      drop(16+rise/2, 3-rise, impact ? 6 : 4);
+      line([[-20,18],[-9,18],[0,13],[9,18],[20,18]]);
+      break;
+    }
+    case "DRY_AIR": {
+      const gust = frameIndex === 2;
+      ctx.translate(sway * 2, frameIndex % 4 * 3);
+      line([[-18,-8],[gust?10:4,-8],[gust?17:10,-14]]);
+      line([[-13,2],[gust?20:12,2]]);
+      line([[-19,12],[gust?6:0,12],[gust?13:6,17]]);
+      break;
+    }
+    case "CHEERFUL":
+      ctx.font = 'bold 22px "Hiragino Sans", "Noto Sans JP", sans-serif';
+      ctx.textAlign = "right";
+      ctx.fillText("みまわり順調♪", 20 + sway, 4 - Math.abs(sway));
+      break;
+  }
+  ctx.restore();
+}
+
+// The USB payload contains only the mark, leaving the editable face and
+// live mouth in the existing device renderer.
+export function encodeEnvironmentMark(ctx, emotion, frameIndex) {
+  const bounds = environmentMarkBounds(emotion);
+  if (!bounds) return undefined;
+  const {x,y,width,height} = bounds;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(x,y,width,height);
+  drawEnvironmentMark(ctx, emotion, frameIndex);
+  const rgba = ctx.getImageData(x,y,width,height).data;
+  const stride = width / 8;
+  const pixels = new Uint8Array(stride * height);
+  let left = stride, right = -1, top = height, bottom = -1;
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      if (rgba[(row * width + col) * 4] >= 128) continue;
+      const byte = col >> 3;
+      pixels[row * stride + byte] |= 0x80 >> (col & 7);
+      left = Math.min(left, byte);
+      right = Math.max(right, byte);
+      top = Math.min(top, row);
+      bottom = Math.max(bottom, row);
+    }
+  }
+  if (right < left) return undefined;
+  const croppedStride = right - left + 1;
+  const croppedHeight = bottom - top + 1;
+  const cropped = new Uint8Array(croppedStride * croppedHeight);
+  for (let row = 0; row < croppedHeight; row++) {
+    const start = (top + row) * stride + left;
+    cropped.set(pixels.subarray(start, start + croppedStride), row * croppedStride);
+  }
+  return {x:x + left*8, y:y + top, width:croppedStride*8, height:croppedHeight, pixels:encodeBase64(cropped)};
 }
