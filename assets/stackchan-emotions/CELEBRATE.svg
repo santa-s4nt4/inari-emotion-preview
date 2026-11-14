@@ -29,16 +29,6 @@
     <rect x="105" y="163" width="187" height="150" fill="#68736b"/>
     <rect x="111" y="169" width="175" height="138" fill="#202521"/>
     <rect x="118" y="176" width="160" height="124" fill="#fffdfa"/>
-    <rect x="156" y="226" width="6" height="6" fill="#342820"/>
-    <rect x="180" y="226" width="6" height="6" fill="#342820"/>
-    <rect x="216" y="226" width="6" height="6" fill="#342820"/>
-    <rect x="240" y="226" width="6" height="6" fill="#342820"/>
-    <rect x="162" y="232" width="6" height="6" fill="#342820"/>
-    <rect x="168" y="232" width="6" height="6" fill="#342820"/>
-    <rect x="174" y="232" width="6" height="6" fill="#342820"/>
-    <rect x="222" y="232" width="6" height="6" fill="#342820"/>
-    <rect x="228" y="232" width="6" height="6" fill="#342820"/>
-    <rect x="234" y="232" width="6" height="6" fill="#342820"/>
     <rect x="144" y="250" width="6" height="6" fill="#e9a19a"/>
     <rect x="150" y="250" width="6" height="6" fill="#e9a19a"/>
     <rect x="246" y="250" width="6" height="6" fill="#e9a19a"/>
@@ -56,6 +46,10 @@
     <rect x="186" y="274" width="6" height="6" fill="#342820"/>
     <rect x="192" y="274" width="6" height="6" fill="#b84036"/>
     <rect x="198" y="274" width="6" height="6" fill="#342820"/>
+    <path d="M 158 229 Q 168 218 178 229" fill="none" stroke="#342820" stroke-width="3" stroke-linecap="round" transform="rotate(7 168 226)"/>
+    <path d="M 218 229 Q 228 218 238 229" fill="none" stroke="#342820" stroke-width="3" stroke-linecap="round" transform="rotate(-7 228 226)"/>
+    <ellipse cx="198" cy="255" rx="6" ry="3" fill="#342820"/>
+    <path d="M 152 255 L 138 250 M 151 259 L 135 259 M 152 263 L 139 268 M 244 255 L 258 250 M 245 259 L 261 259 M 244 263 L 257 268" fill="none" stroke="#929292" stroke-width="1.3" stroke-linecap="round"/>
     <rect x="105" y="163" width="187" height="150" fill="none" stroke="#525c55" stroke-width="6"/>
 
     <!-- Red apron is the inherited INARI accent, below the display. -->

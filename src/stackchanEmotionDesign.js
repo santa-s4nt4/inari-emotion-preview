@@ -60,8 +60,8 @@ export const TIMELINES = Object.freeze({
   ],
   NOTICE: [
     step(500, 0, 26, "neutral", {mouthWidth:28,eyeY:94}),
-    step(120, 0, 26, "notice", {eyeMode:"ellipse",eyeWidth:17,eyeHeight:21,eyeY:94,browSide:"none",mouthMode:"open",mouthWidth:12,mouthHeight:6}),
-    step(120, 0, 26, "notice", {eyeMode:"ellipse",eyeWidth:19,eyeHeight:27,eyeY:94,browSide:"none",mouthMode:"open",mouthWidth:12,mouthHeight:6}),
+    step(120, 0, 26, "notice", {eyeMode:"ellipse",eyeWidth:25,eyeHeight:20,eyeY:94,browSide:"none",mouthMode:"open",mouthWidth:12,mouthHeight:6}),
+    step(120, 0, 26, "notice", {eyeMode:"ellipse",eyeWidth:27,eyeHeight:25,eyeY:94,browSide:"none",mouthMode:"open",mouthWidth:12,mouthHeight:6}),
     step(900, 0, 29, "notice", {eyeRadius:12,browSide:"none",mouthMode:"open",mouthWidth:12,mouthHeight:6}),
     step(1200, 16, 29, "notice", {eyeRadius:13,browSide:"none",mouthMode:"open",mouthWidth:18,mouthHeight:8}),
     step(900, 16, 29, "notice", {eyeRadius:13,browSide:"none",mouthMode:"open",mouthWidth:12,mouthHeight:6}),

@@ -91,29 +91,32 @@ export function drawFace(ctx, preset, mouthOpen = 0) {
     const y = preset.eyeY + (index === 0 ? preset.leftEyeOffsetY : preset.rightEyeOffsetY);
     const r = preset.eyeRadius;
     ctx.beginPath();
-    if (preset.eyeMode === "dot" || preset.eyeMode === "wide" || preset.eyeMode === "ellipse") {
-      const width = preset.eyeMode === "ellipse" ? preset.eyeWidth/2 : preset.eyeMode === "wide" ? Math.round(r*0.82) : r;
-      const height = preset.eyeMode === "ellipse" ? preset.eyeHeight/2 : preset.eyeMode === "wide" ? Math.round(r*1.35) : r;
-      ctx.ellipse(x, y, width, height, 0, 0, Math.PI * 2);
+    // Both eyes lean outward; closed and smiling eyes keep their own silhouette.
+    ctx.save();
+    ctx.translate(x, y);
+    const direction = index === 0 ? 1 : -1;
+    const angle = {fox:20, closed:9, smile:7}[preset.eyeMode] ?? 14;
+    ctx.rotate(direction * angle * Math.PI / 180);
+    if (preset.eyeMode === "closed") {
+      ctx.ellipse(0, 0, r, 1.8, 0, 0, 2 * Math.PI);
       ctx.fill();
-    } else if (preset.eyeMode === "fox") {
-      const direction = index === 0 ? 1 : -1;
-      const rx = Math.floor(preset.eyeWidth / 2);
-      const ry = Math.floor(preset.eyeHeight / 2);
-      ctx.moveTo(x - direction * rx, y - ry);
-      ctx.lineTo(x + direction * rx, y + Math.floor(ry / 2));
-      ctx.lineTo(x + direction * Math.floor(rx / 3), y + ry);
-      ctx.lineTo(x - direction * Math.floor(rx / 2), y + Math.floor(ry / 3));
-      ctx.closePath();
-      ctx.fill();
-    } else if (preset.eyeMode === "closed") {
-      ctx.fillRect(Math.round(x-r), Math.round(y-2), r*2, 4);
-    } else {
+    } else if (preset.eyeMode === "smile") {
       ctx.lineWidth = 4;
-      ctx.moveTo(x-r, y+3);
-      ctx.quadraticCurveTo(x, y-r+1, x+r, y+3);
+      ctx.lineCap = "round";
+      ctx.moveTo(-r, 3);
+      ctx.quadraticCurveTo(0, 1-r, r, 3);
       ctx.stroke();
+    } else {
+      const [rx, ry] = {
+        dot: [r * 1.55, r * 1.12],
+        wide: [r * 1.16, r * 1.52],
+        ellipse: [preset.eyeWidth / 2, preset.eyeHeight / 2],
+        fox: [preset.eyeWidth / 2, preset.eyeHeight * 0.33],
+      }[preset.eyeMode];
+      ctx.ellipse(0, 0, rx, ry, 0, 0, 2 * Math.PI);
+      ctx.fill();
     }
+    ctx.restore();
     if (preset.browSide === "both" || preset.browSide === (index===0?"left":"right")) {
       const tilt = index === 0 ? preset.browLeftTilt : preset.browRightTilt;
       const bx = eyes[index] + (index===0?preset.browLeftX:preset.browRightX);
@@ -124,6 +127,10 @@ export function drawFace(ctx, preset, mouthOpen = 0) {
       ctx.stroke();
     }
   }
+  ctx.beginPath();
+  ctx.ellipse(160, 118, 12, 6, 0, 0, 2 * Math.PI);
+  ctx.fill();
+
   const mx = FACE_WIDTH / 2 + preset.mouthOffsetX, my = preset.mouthY, mw = preset.mouthWidth;
   if (mouthOpen > 0) {
     ctx.beginPath(); ctx.ellipse(mx,my,Math.max(5,Math.min(22,mw/3)),Math.max(4,Math.min(25,mouthOpen/5)),0,0,Math.PI*2); ctx.fill();
@@ -189,7 +196,7 @@ export function encodeBase64(pixels) {
 }
 
 const MARK_BOUNDS = {x:240, y:12, width:72, height:160};
-const COLD_MARK_BOUNDS = {x:168, y:40, width:112, height:104};
+const COLD_MARK_BOUNDS = {x:160, y:40, width:120, height:104};
 const THINKING_SPINNER_BOUNDS = {x:248, y:14, width:64, height:50};
 const SPINNER_OFFSETS = [[0,-16],[11,-11],[16,0],[11,11],[0,16],[-11,11],[-16,0],[-11,-11]];
 const SPINNER_RADII = [4.5,4,3.5,3,2.5,2,1.5,1];
@@ -272,9 +279,9 @@ export function drawEnvironmentMark(ctx, emotion, frameIndex) {
       line([[-12+sway,top],[-12+sway,top+24]]);
       line([[-3+sway,top],[-3+sway,top+24]]);
 
-      const dripLength = [0, 7, 15, 25, 18, 9, 0, 0][frameIndex % 8];
+      const dripLength = [0, 7, 14, 22, 16, 9, 0, 0][frameIndex % 8];
       if (dripLength) {
-        const x = -96, y = 82;
+        const x = -104, y = 85;
         const width = Math.min(7, 2 + dripLength/5);
         ctx.beginPath();
         ctx.moveTo(x,y);
