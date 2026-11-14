@@ -197,6 +197,45 @@ export function encodeBase64(pixels) {
 
 const MARK_BOUNDS = {x:240, y:12, width:72, height:160};
 const COLD_MARK_BOUNDS = {x:160, y:40, width:120, height:104};
+const REST_BUBBLE_BOUNDS = {x:168, y:104, width:48, height:44};
+const REST_BUBBLE_RADII = [5,6,8,10,13,15,16,17,17,16,15,13,10,8,6,5];
+const REST_EXPORT_PHASES = [0,6,10,5,0];
+
+export function restBubblePhase(elapsedMs) {
+  return Math.floor(elapsedMs / 160) % REST_BUBBLE_RADII.length;
+}
+
+export function drawRestBubble(ctx, phase) {
+  const radius = REST_BUBBLE_RADII[phase];
+  const x = 176 + radius, y = 122 + Math.floor(radius / 4);
+  ctx.save();
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(174, 120);
+  ctx.lineTo(177, 123);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y, radius - 1, 0, 2 * Math.PI);
+  ctx.stroke();
+  if (radius >= 10) {
+    ctx.beginPath();
+    ctx.arc(x, y, radius - 5, -2.2, -1.17);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+export function faceEffectPhase(emotion, frameIndex, elapsedMs) {
+  if (emotion === "REST") {
+    return elapsedMs === undefined
+      ? REST_EXPORT_PHASES[frameIndex % REST_EXPORT_PHASES.length] : restBubblePhase(elapsedMs);
+  }
+  if (emotion === "THINKING") return elapsedMs === undefined ? frameIndex % 8 : thinkingSpinnerPhase(elapsedMs);
+  return frameIndex;
+}
+
 const THINKING_SPINNER_BOUNDS = {x:248, y:14, width:64, height:50};
 const SPINNER_OFFSETS = [[0,-16],[11,-11],[16,0],[11,11],[0,16],[-11,11],[-16,0],[-11,-11]];
 const SPINNER_RADII = [4.5,4,3.5,3,2.5,2,1.5,1];
@@ -239,6 +278,7 @@ export function drawFoxWhiskers(ctx) {
 const CAPTION_BOUNDS = {x:120, y:8, width:192, height:48};
 
 export function environmentMarkBounds(emotion) {
+  if (emotion === "REST") return REST_BUBBLE_BOUNDS;
   if (emotion === "THINKING") return THINKING_SPINNER_BOUNDS;
   if (emotion === "CHEERFUL") return CAPTION_BOUNDS;
   if (emotion === "COLD") return COLD_MARK_BOUNDS;
@@ -247,10 +287,14 @@ export function environmentMarkBounds(emotion) {
 }
 
 // Use the same LCD coordinates for the preview, exported frames and USB mask.
-export function drawEnvironmentMark(ctx, emotion, frameIndex) {
+export function drawEnvironmentMark(ctx, emotion, frameIndex, phase = faceEffectPhase(emotion, frameIndex)) {
   if (!environmentMarkBounds(emotion)) return;
+  if (emotion === "REST") {
+    drawRestBubble(ctx, phase);
+    return;
+  }
   if (emotion === "THINKING") {
-    drawThinkingSpinner(ctx, frameIndex % SPINNER_OFFSETS.length, true);
+    drawThinkingSpinner(ctx, phase, true);
     return;
   }
   const sway = [0, 3, 0, -3][frameIndex % 4];
@@ -338,13 +382,13 @@ export function drawEnvironmentMark(ctx, emotion, frameIndex) {
 
 // The USB payload contains only the mark, leaving the editable face and
 // live mouth in the existing device renderer.
-export function encodeEnvironmentMark(ctx, emotion, frameIndex) {
+export function encodeEnvironmentMark(ctx, emotion, frameIndex, phase) {
   const bounds = environmentMarkBounds(emotion);
   if (!bounds) return undefined;
   const {x,y,width,height} = bounds;
   ctx.fillStyle = "#fff";
   ctx.fillRect(x,y,width,height);
-  drawEnvironmentMark(ctx, emotion, frameIndex);
+  drawEnvironmentMark(ctx, emotion, frameIndex, phase);
   const rgba = ctx.getImageData(x,y,width,height).data;
   const stride = width / 8;
   const pixels = new Uint8Array(stride * height);

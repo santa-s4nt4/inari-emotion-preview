@@ -59,8 +59,8 @@
     <rect x="192" y="280" width="6" height="6" fill="#342820"/>
     <rect x="198" y="280" width="6" height="6" fill="#342820"/>
     <rect x="204" y="280" width="6" height="6" fill="#342820"/>
-    <ellipse cx="168" cy="244" rx="9" ry="7" fill="#342820" transform="rotate(14 168 244)"/>
-    <ellipse cx="228" cy="244" rx="9" ry="7" fill="#342820" transform="rotate(-14 228 244)"/>
+    <ellipse cx="168" cy="244" rx="8" ry="2.7" fill="#342820" transform="rotate(20 168 244)"><animate attributeName="ry" values="2.7;0.85;2.7;0.85;2.7;0.85;2.7" keyTimes="0;.28;.295;.324;.344;.949;.965" calcMode="discrete" dur="7.1s" repeatCount="indefinite"/></ellipse>
+    <ellipse cx="228" cy="244" rx="8" ry="2.7" fill="#342820" transform="rotate(-20 228 244)"><animate attributeName="ry" values="2.7;0.85;2.7;0.85;2.7;0.85;2.7" keyTimes="0;.28;.295;.324;.344;.949;.965" calcMode="discrete" dur="7.1s" repeatCount="indefinite"/></ellipse>
     <ellipse cx="198" cy="255" rx="6" ry="3" fill="#342820"/>
     <path d="M 152 255 L 138 250 M 151 259 L 135 259 M 152 263 L 139 268 M 244 255 L 258 250 M 245 259 L 261 259 M 244 263 L 257 268" fill="none" stroke="#929292" stroke-width="1.3" stroke-linecap="round"/>
     <rect x="105" y="163" width="187" height="150" fill="none" stroke="#525c55" stroke-width="6"/>

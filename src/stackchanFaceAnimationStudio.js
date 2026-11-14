@@ -1,13 +1,14 @@
-import { REVISED_ENVIRONMENT_EMOTES } from "./stackchanEmotionDesign.js";
+import { REVISED_ENVIRONMENT_EMOTES, CONCERN_FOX_EYES, CONCERN_BLINK_SPLITS } from "./stackchanEmotionDesign.js";
 import { DEVICE_EMOTION_ORDER as EMOTION_ORDER } from "./emotionCatalog.js";
 import { FACE_TYPES } from "./stackchanMotionDraft.js";
 import { FACE_FIELDS } from "./stackchanFaceStudio.js";
-import { FACE_WIDTH, FACE_HEIGHT, FACE_ENCODING, drawFace, packFacePixels, paintPackedFace, encodeBase64, validatePreset, drawEnvironmentMark, encodeEnvironmentMark, drawFoxWhiskers, drawThinkingSpinner, thinkingSpinnerPhase } from "./stackchanFaceData.js";
+import { FACE_WIDTH, FACE_HEIGHT, FACE_ENCODING, drawFace, packFacePixels, paintPackedFace, encodeBase64, validatePreset, drawEnvironmentMark, encodeEnvironmentMark, drawFoxWhiskers, drawThinkingSpinner, drawRestBubble, faceEffectPhase } from "./stackchanFaceData.js";
 import { FACE_ANIMATION_FORMAT, MAX_FACE_ANIMATION_FRAMES,
   MIN_FACE_FRAME_MS, MAX_FACE_FRAME_MS, defaultFaceAnimationDesign, validateFaceAnimationDesign, upgradeFaceAnimationDesign, faceFrameAt } from "./stackchanFaceAnimationData.js";
 import { alignTracks, motorFeasibility } from "./stackchanUnifiedTimeline.js";
 
-const STORAGE_KEY = "inari-stackchan-face-animation-design-v10";
+const STORAGE_KEY = "inari-stackchan-face-animation-design-v11";
+const PREVIOUS_CONCERN_STORAGE_KEY = "inari-stackchan-face-animation-design-v10";
 const PREVIOUS_THINKING_STORAGE_KEY = "inari-stackchan-face-animation-design-v9";
 const COLD_MOUTH_STORAGE_KEY = "inari-stackchan-face-animation-design-v8";
 const TEMPERATURE_STORAGE_KEY = "inari-stackchan-face-animation-design-v7";
@@ -19,7 +20,8 @@ const option = (value, label=value) => { const node=document.createElement("opti
 
 function loadDesign(defaults) {
   try {
-    const current = localStorage.getItem(STORAGE_KEY);
+    const latest = localStorage.getItem(STORAGE_KEY);
+    const current = latest ?? localStorage.getItem(PREVIOUS_CONCERN_STORAGE_KEY);
     const previousThinking = localStorage.getItem(PREVIOUS_THINKING_STORAGE_KEY);
     const coldMouth = localStorage.getItem(COLD_MOUTH_STORAGE_KEY);
     const temperature = localStorage.getItem(TEMPERATURE_STORAGE_KEY);
@@ -59,6 +61,20 @@ function loadDesign(defaults) {
           preset.eyeMode = "dot";
         }
       }
+    }
+    if (upgraded && latest === null && saved?.emotions?.CONCERN) {
+      const concern = upgraded.emotions.CONCERN;
+      const oldDurations = [500,1300,500,140,1600,400,1200,1000,460];
+      const originalTiming = concern.frames.length === oldDurations.length &&
+        concern.frames.every((frame,index) => frame.durationMs === oldDurations[index]);
+      concern.frames = concern.frames.flatMap(({durationMs,preset},index) => {
+        const updated = ["dot","ellipse","wide"].includes(preset.eyeMode)
+          ? {...preset,...CONCERN_FOX_EYES} : preset;
+        const split = originalTiming && CONCERN_BLINK_SPLITS[index];
+        return split ? split.map(([ms,blink]) => ({
+          durationMs:ms, preset:{...updated, eyeMode:blink ? "closed" : updated.eyeMode},
+        })) : [{durationMs,preset:updated}];
+      });
     }
     if (upgraded) return upgraded;
   } catch { /* Use the original INARI sequence. */ }
@@ -153,23 +169,24 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
     canvas.width=FACE_WIDTH; canvas.height=FACE_HEIGHT;
     const ctx=canvas.getContext("2d",{willReadFrequently:true});
     drawFace(ctx,frame.preset);
-    const thinking = name === "THINKING";
-    const base = thinking ? packFacePixels(ctx.getImageData(0,0,FACE_WIDTH,FACE_HEIGHT).data) : null;
+    const usesLiveEffect = name === "THINKING" || name === "REST";
+    const base = usesLiveEffect ? packFacePixels(ctx.getImageData(0,0,FACE_WIDTH,FACE_HEIGHT).data) : null;
     drawEnvironmentMark(ctx, name, index);
     const pixels=packFacePixels(ctx.getImageData(0,0,FACE_WIDTH,FACE_HEIGHT).data);
     paintPackedFace(ctx,base ?? pixels);
     drawFoxWhiskers(ctx);
     const image={canvas,pixels,index,previews:new Map()}; cache.set(frame,image); return image;
   }
-  function displayFrame(frame, name, index, phase = index % 8) {
+  function displayFrame(frame, name, index, phase = faceEffectPhase(name,index)) {
     const image=frameImage(frame,name,index);
-    if (name!=="THINKING") return image.canvas;
+    if (name!=="THINKING" && name!=="REST") return image.canvas;
     if (!image.previews.has(phase)) {
       const canvas=document.createElement("canvas");
       canvas.width=FACE_WIDTH; canvas.height=FACE_HEIGHT;
       const ctx=canvas.getContext("2d");
       ctx.drawImage(image.canvas,0,0);
-      drawThinkingSpinner(ctx,phase);
+      if (name==="REST") drawRestBubble(ctx,phase);
+      else drawThinkingSpinner(ctx,phase);
       image.previews.set(phase,canvas);
     }
     return image.previews.get(phase);
@@ -286,8 +303,7 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
   }
   function showFrame(frame, elapsedMs) {
     const index=animation().frames.indexOf(frame);
-    const phase=emotion==="THINKING" && elapsedMs!==undefined && override===null
-      ? thinkingSpinnerPhase(elapsedMs) : index % 8;
+    const phase=faceEffectPhase(emotion,index,override===null ? elapsedMs : undefined);
     if (shownFrame===frame && shownPhase===phase) return;
     shownFrame=frame; shownPhase=phase;
     previewCtx.imageSmoothingEnabled=false;
@@ -492,16 +508,16 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
       const track=animation(name);
       const frame=override!==null && name===emotion?track.frames[override]:faceFrameAt(forceLoop?{...track,playback:"loop"}:track,elapsedMs).frame;
       const index=track.frames.indexOf(frame);
-      const phase=override!==null && name===emotion ? index%8 : thinkingSpinnerPhase(elapsedMs);
+      const phase=faceEffectPhase(name,index,override!==null && name===emotion ? undefined : elapsedMs);
       return displayFrame(frame,name,index,phase);
     },
     frameIndexAt(name,elapsedMs,forceLoop=false) {
       const track=animation(name);
       return override!==null && name===emotion ? override : faceFrameAt(forceLoop?{...track,playback:"loop"}:track,elapsedMs).index;
     },
-    markAt(name,index) {
-      const key = `${name}:${index}`;
-      if (!marks.has(key)) marks.set(key, encodeEnvironmentMark(markContext,name,index));
+    markAt(name,index,phase = faceEffectPhase(name,index)) {
+      const key = `${name}:${phase}`;
+      if (!marks.has(key)) marks.set(key, encodeEnvironmentMark(markContext,name,index,phase));
       return marks.get(key);
     },
     presetAt(name,elapsedMs,forceLoop=false) {

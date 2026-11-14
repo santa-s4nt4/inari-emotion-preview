@@ -42,6 +42,23 @@ const tremblingMouths = [
   {mouthMode:"open",mouthWidth:28,mouthHeight:5,mouthY:150,mouthOffsetX:0},
 ];
 
+export const CONCERN_FOX_EYES = Object.freeze({eyeMode:"fox", eyeWidth:29, eyeHeight:12, eyeRadius:10});
+
+// Keep the original neck arrival windows. Insert the shorter blinks inside
+// steps which already hold the same physical pose.
+export const CONCERN_BLINK_SPLITS = Object.freeze({
+  2: [[200, false], [100, true], [200, false]],
+  8: [[100, false], [110, true], [250, false]],
+});
+
+const concernEyes = (part, index) => {
+  const lengths = CONCERN_BLINK_SPLITS[index] ?? [[part.ms, part.facePreset.eyeMode === "closed"]];
+  return lengths.map(([ms, blink]) => ({
+    ...part, ms,
+    facePreset: {...part.facePreset, ...CONCERN_FOX_EYES, eyeMode:blink ? "closed" : "fox"},
+  }));
+};
+
 const thinking = (ms, yaw, pitch, gazeX, eyeMode = "fox") =>
   step(ms, yaw, pitch, "neutral", {
     eyeMode, eyeY:84, eyeWidth:32, eyeHeight:12, eyeRadius:8, gazeX,
@@ -143,7 +160,7 @@ export const TIMELINES = Object.freeze({
     step(1200, -6.4, 23.5, "concern", {eyeRadius:10,browLeftTilt:-12,browRightTilt:12,mouthHeight:17,sweatOffsetX:-6,sweatOffsetY:24,sweatSize:13}),
     step(1000, 0, 26, "concern", {eyeRadius:10,browLeftTilt:-12,browRightTilt:12,mouthHeight:14,sweat:"none"}),
     step(460, 0, 26, "concern", {eyeRadius:10,browLeftTilt:-12,browRightTilt:12,mouthHeight:14,sweat:"none"}),
-  ],
+  ].flatMap(concernEyes),
   ALERT: [
     step(500, 0, 26, "attentive", {eyeMode:"dot",eyeRadius:9,mouthMode:"line"}),
     step(120, 0, 26, "alert", {eyeMode:"dot",eyeRadius:11,browSide:"none",mouthMode:"line",mouthWidth:28}),

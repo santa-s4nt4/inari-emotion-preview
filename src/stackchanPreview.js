@@ -4,7 +4,7 @@ import { DEVICE_EMOTION_ORDER, EXTRA_DEVICE_LABELS, EMOTION_ORDER, getEmotion, r
 import { inariEditorLimits, clampAngle, clamp } from "./stackchanMotionMath.js";
 import { editorBounds, visibleStep, motionDraft, motionDraftFilename, FACE_TYPES, STEP_MIN_MS, STEP_MAX_MS, MAX_STEPS } from "./stackchanMotionDraft.js";
 import { baseFacePreset, baseFaceDesign, baseFaceBitmaps, loadBaseFaceDesign } from "./stackchanFaceLibrary.js";
-import { FACE_WIDTH, FACE_HEIGHT, validateFaceDesign, drawFace, drawEnvironmentMark, packFacePixels, paintPackedFace, drawFoxWhiskers, drawThinkingSpinner, thinkingSpinnerPhase } from "./stackchanFaceData.js";
+import { FACE_WIDTH, FACE_HEIGHT, validateFaceDesign, drawFace, drawEnvironmentMark, packFacePixels, paintPackedFace, drawFoxWhiskers, drawThinkingSpinner, thinkingSpinnerPhase, faceEffectPhase } from "./stackchanFaceData.js";
 import { createFaceAnimationStudio } from "./stackchanFaceAnimationStudio.js";
 import { createStackchanScene } from "./stackchanScene.js";
 import { createLiveSerial } from "./stackchanLiveSerial.js?v=3";
@@ -266,7 +266,7 @@ function updateSpeech(now) {
   lastMouthAt=now;
   mouthOpen=[25,75,45,95,0,65][Math.floor(now/150)%6];
   drawFace(speakingCtx,faceAnimationStudio.presetAt(currentEmotion,episodeMs,audioStudio.isBgmPlaying()),mouthOpen);
-  if (currentEmotion !== "THINKING") drawEnvironmentMark(speakingCtx,currentEmotion,
+  if (currentEmotion !== "THINKING" && currentEmotion !== "REST") drawEnvironmentMark(speakingCtx,currentEmotion,
     faceAnimationStudio.frameIndexAt(currentEmotion,episodeMs,audioStudio.isBgmPlaying()));
   const pixels=packFacePixels(speakingCtx.getImageData(0,0,FACE_WIDTH,FACE_HEIGHT).data);
   paintPackedFace(speakingCtx,pixels);
@@ -631,12 +631,12 @@ const liveSerial=createLiveSerial((supportsMarks,supportsFoxFace)=>{
   const frame=faceAnimationStudio.frameIndexAt(currentEmotion,episodeMs,loop);
   if (!supportsFoxFace && face.eyeMode==="fox") face.eyeMode="ellipse";
   const thinking=currentEmotion==="THINKING";
-  const phase=faceAnimationStudio.isOverriding() ? frame%8 : thinkingSpinnerPhase(episodeMs);
+  const phase=faceEffectPhase(currentEmotion,frame,faceAnimationStudio.isOverriding() ? undefined : episodeMs);
   return {
     yaw:Math.round(yaw*10),pitch:Math.round(pitch*10),mouthOpen:speaking?mouthOpen:0,face,
     spinner:thinking && supportsFoxFace ? phase : undefined,
-    mark:supportsMarks && !(thinking && supportsFoxFace)
-      ? faceAnimationStudio.markAt(currentEmotion,thinking?phase:frame) : undefined,
+    mark:supportsMarks && !(thinking && supportsFoxFace) && !(speaking && currentEmotion==="REST")
+      ? faceAnimationStudio.markAt(currentEmotion,frame,phase) : undefined,
   };
 },(profile)=>{
   const bounds=[profile.yawMinTenths,profile.yawMaxTenths,profile.pitchMinTenths,profile.pitchMaxTenths];
