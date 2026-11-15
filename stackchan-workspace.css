@@ -24,7 +24,7 @@
 .face-canvas-panel .face-animation-timeline td{white-space:nowrap}
 .face-canvas-panel .timeline-warning{color:#b23424;font-weight:900;background:#fff0e8}
 .face-canvas-panel .timeline-ok{color:#416b54}
-.tool-dock .editor-table-wrap,.tool-dock #addStep,.tool-dock #resetEmotion{display:none}
+
 .face-inspector{padding:18px}
 .inspector-title{border-bottom:1px solid #d7e0d6;margin-bottom:15px}
 .inspector-title span{font-size:10px;letter-spacing:.16em;color:#ac3d32;font-weight:900}
@@ -40,3 +40,10 @@
 @media(max-width:1250px){.workspace-layout{grid-template-columns:240px minmax(400px,1fr) 290px;padding:12px;gap:10px}.face-canvas-panel{padding:15px}}
 @media(max-width:1020px){.workspace-layout{grid-template-columns:210px minmax(0,1fr)}.face-inspector{grid-column:2;position:static;max-height:none}.tool-dock{grid-row:1 / span 2}}
 @media(max-width:700px){.workspace-layout{display:flex;flex-direction:column}.tool-dock,.face-inspector{position:static;max-height:none;width:100%}.face-canvas-panel{width:100%;padding:12px}.face-canvas-panel .face-animation-stage{min-height:230px;padding:10px}.tool-dock .emotion-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.motion-sliders{display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin:.75rem 0;padding:.5rem .75rem;border:1px solid #b5c2b4}
+.motion-sliders legend,.motion-sliders label{font-size:.75rem}
+.motion-sliders label{display:flex;align-items:center;gap:.5rem;flex:1;min-width:11rem}
+.motion-sliders input{min-width:5rem;flex:1;accent-color:#b93d31}
+.motion-sliders output{min-width:3rem;text-align:right;font-variant-numeric:tabular-nums}
+.face-animation-timeline td small{display:block;color:#53685a;white-space:nowrap}

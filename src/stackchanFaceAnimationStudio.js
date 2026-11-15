@@ -5,7 +5,8 @@ import { FACE_FIELDS } from "./stackchanFaceStudio.js";
 import { FACE_WIDTH, FACE_HEIGHT, FACE_ENCODING, drawFace, packFacePixels, paintPackedFace, encodeBase64, validatePreset, drawEnvironmentMark, encodeEnvironmentMark, drawFoxWhiskers, drawThinkingSpinner, drawRestBubble, faceEffectPhase } from "./stackchanFaceData.js";
 import { FACE_ANIMATION_FORMAT, MAX_FACE_ANIMATION_FRAMES,
   MIN_FACE_FRAME_MS, MAX_FACE_FRAME_MS, defaultFaceAnimationDesign, validateFaceAnimationDesign, upgradeFaceAnimationDesign, faceFrameAt } from "./stackchanFaceAnimationData.js";
-import { alignTracks, motorFeasibility } from "./stackchanUnifiedTimeline.js";
+import { DEFAULT_START_POSE, isTenthDegree, motionAngles } from "./stackchanMotionMath.js";
+import { alignTracks } from "./stackchanUnifiedTimeline.js";
 
 const STORAGE_KEY = "inari-stackchan-face-animation-design-v11";
 const PREVIOUS_CONCERN_STORAGE_KEY = "inari-stackchan-face-animation-design-v10";
@@ -81,7 +82,7 @@ function loadDesign(defaults) {
   return defaults;
 }
 
-export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChange,onReplay,getMotionSteps,getMotionLimits,getMotionRates,onMotionPersist=()=>{},onPlaybackChange=()=>{}}) {
+export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChange,onReplay,getMotionSteps,getMotionPlan,onMotionPersist=()=>{},onPlaybackChange=()=>{}}) {
   const defaults = () => defaultFaceAnimationDesign(timelines,loops,getBasePreset);
   let design = loadDesign(defaults());
   let emotion = "NEUTRAL";
@@ -119,7 +120,10 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
       recovered.push(name);
     }
   }
-  for (const name of EMOTION_ORDER) alignEmotion(name);
+  for (const name of EMOTION_ORDER) {
+    alignEmotion(name);
+    onPlaybackChange(name,design.emotions[name].playback);
+  }
   snapshot=currentSnapshot();
   const preview = $("faceAnimationPreview");
   const previewCtx = preview.getContext("2d");
@@ -153,7 +157,10 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
     target.push(snapshot);
     snapshot=source.pop();
     const state=JSON.parse(snapshot); design=state.design;
-    for (const name of EMOTION_ORDER) getMotionSteps(name).splice(0,Infinity,...state.motions[name]);
+    for (const name of EMOTION_ORDER) {
+      getMotionSteps(name).splice(0,Infinity,...state.motions[name]);
+      onPlaybackChange(name,animation(name).playback);
+    }
     selected=Math.min(selected,animation().frames.length-1);
     override=selected; shownFrame=null;
     try {localStorage.setItem(STORAGE_KEY,JSON.stringify(design));} catch { /* Current editing session still works. */ }
@@ -314,7 +321,33 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
     const rows=$("faceAnimationRows"); rows.replaceChildren();
     const frames=animation().frames;
     const motions=getMotionSteps(emotion);
-    const feasibility=motorFeasibility(motions,getMotionRates(emotion),0,30,animation().playback==="loop");
+    const plan=getMotionPlan(emotion);
+    const adjustment=$("adjustmentReadout");
+    adjustment.textContent=plan.changes.length ? `${plan.changes.length}コマの角度を補正` : "角度の補正なし";
+    $("returnReadout").textContent=
+      `開始姿勢への戻り ${plan.beforeReturn.requiredMs} → ${plan.returning.requiredMs} ms（最終コマ ${plan.returning.availableMs} msで試算）`;
+
+    function updateAngle(index,axis,value) {
+      const {min,max}=plan.bounds[axis];
+      if (isTenthDegree(value) && value >= min && value <= max) {
+        motions[index][axis]=(value-DEFAULT_START_POSE[axis])/4;
+        persist();
+        renderRows();
+        onChange();
+      } else renderRows();
+    }
+
+    for (const axis of ["yaw","pitch"]) {
+      const slider=$(`step${axis}Slider`);
+      const readout=$(`step${axis}Value`);
+      const {min,max}=plan.bounds[axis];
+      slider.min=String(min);
+      slider.max=String(max);
+      slider.value=String(motionAngles(plan.steps[selected])[axis]);
+      readout.value=`${slider.value}°`;
+      slider.oninput=()=>{readout.value=`${slider.value}°`;};
+      slider.onchange=()=>updateAngle(selected,axis,slider.valueAsNumber);
+    }
     frames.forEach((frame,index) => {
       const row=document.createElement("tr");
       if (index===selected) row.classList.add("selected");
@@ -335,24 +368,27 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
       const angleCell=(axis)=>{
         const cell=document.createElement("td"), field=document.createElement("input");
         field.type="number"; field.step="0.1";
-        const limits=getMotionLimits();
-        field.min=String(axis==="yaw"?Math.max(-60,limits?.yaw?.minDeg??-60):Math.max(10,limits?.pitch?.minDeg??10));
-        field.max=String(axis==="yaw"?Math.min(60,limits?.yaw?.maxDeg??60):Math.min(35,limits?.pitch?.maxDeg??35));
-        field.value=String(Math.round((axis==="yaw"?motions[index].yaw*4:30+motions[index].pitch*4)*10)/10);
+        field.min=String(plan.bounds[axis].min);
+        field.max=String(plan.bounds[axis].max);
+        const before=motionAngles(motions[index])[axis];
+        const after=motionAngles(plan.steps[index])[axis];
+        field.value=String(after);
+        if (before !== after) {
+          const difference=document.createElement("small");
+          difference.textContent=`${before}° → ${after}°`;
+          cell.append(difference);
+        }
         field.setAttribute("aria-label",`コマ${index+1} 首${axis==="yaw"?"左右":"上下"}角度`);
-        field.addEventListener("change",()=>{
-          const value=Number(field.value);
-          if (!Number.isFinite(value)||value<Number(field.min)||value>Number(field.max)) {renderRows();return;}
-          motions[index][axis]=(axis==="yaw"?value:value-30)/4;
-          persist(); renderRows(); onReplay();
-        });
+        field.addEventListener("change",()=>updateAngle(index,axis,field.valueAsNumber));
         cell.append(field); return cell;
       };
       const possible=document.createElement("td");
-      const outcome=feasibility[index];
-      possible.textContent=outcome.possible?"到達可":`要${outcome.requiredMs} ms`;
-      possible.className=outcome.possible?"timeline-ok":"timeline-warning";
-      possible.title=`指令速度上限と停止150 msからの概算。利用可能 ${outcome.availableMs} ms。`;
+      const before=plan.before[index], outcome=plan.frames[index];
+      possible.textContent=before.requiredMs===outcome.requiredMs
+        ? `${outcome.requiredMs} / ${outcome.availableMs} ms`
+        : `${before.requiredMs} → ${outcome.requiredMs} / ${outcome.availableMs} ms`;
+      possible.className=before.possible?"timeline-ok":"timeline-warning";
+      possible.title="設計上の必要時間 / コマ時間。ループでは最後から最初への移動も含みます。";
       const actions=document.createElement("td");
       const edit=document.createElement("button"); edit.type="button"; edit.textContent="編集";
       edit.setAttribute("aria-label",`顔コマ${index+1}を編集`);
@@ -425,7 +461,7 @@ export function createFaceAnimationStudio({timelines,loops,getBasePreset,onChang
   $("faceAnimationPlayback").addEventListener("change",() => {
     animation().playback=$("faceAnimationPlayback").value;
     onPlaybackChange(emotion,animation().playback);
-    persist(); onChange();
+    persist(); renderRows(); onChange();
   });
   $("faceAnimationCopyBase").addEventListener("click",() => {
     const source=$("faceAnimationBase").value;

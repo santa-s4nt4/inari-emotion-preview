@@ -3,9 +3,10 @@ const ACK="INARI_LIVE_ACK ";
 const FRAME_ACK_TIMEOUT="フレームの応答がありません。";
 const $=(id)=>document.getElementById(id);
 
-export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
+export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{},onClose=()=>{}) {
   let port=null, reader=null, writer=null, connected=false, active=false, buffer="", lastSent=0, sending=false, uploadBusy=false;
   let supportsMarks=false,supportsFoxFace=false;
+  let neckPreview=false, replayRequests=0;
   let profileSupported=false,profileRetry=false,lastProfileAt=0;
   const pending=new Map();
   let outgoing=Promise.resolve();
@@ -46,7 +47,7 @@ export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
         break;
       }
     } catch (error) { status(error instanceof Error?error.message:"USB通信が終了しました。"); }
-    connected=false; active=false; buttons(); failPending("USB通信が終了しました。");
+    connected=false; active=false; neckPreview=false; buttons(); failPending("USB通信が終了しました。"); onClose();
   }
   function request(cmd,data={},timeoutMs=1800) {
     const connection=writer;
@@ -114,6 +115,8 @@ export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
     try { if (reader) await reader.cancel(); } catch { /* Port can already be gone. */ }
     try { if (writer) {writer.releaseLock();writer=null;} await port?.close(); } catch { /* Disconnected. */ }
     port=null;
+    neckPreview=false;
+    onClose();
   }
   $("serialConnect").addEventListener("click",async()=>{
     if (!navigator.serial) {status("Web Serial対応のChromeでlocalhostを開いてください。");return;}
@@ -167,7 +170,15 @@ export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
       // A long-running browser preview may have reached its 30-second neck
       // safety stop while the user was choosing a USB port. Begin a fresh
       // episode when the device actually accepts live preview.
-      onStart();
+      neckPreview=reply.neckReady!==false;
+      try {
+        const profile=neckPreview ? await request("profile") : null;
+        onStart(profile,neckPreview);
+      } catch(error) {
+        neckPreview=false;
+        try { await request("end"); } catch { /* Device timeout also ends preview. */ }
+        throw error;
+      }
       active=true;lastSent=0;lastProfileAt=0;buttons();status(reply.neckReady===false
         ? "実機プレビュー中。首サーボは利用できず、顔のみ反映します。"
         : "実機プレビュー中。顔と首を最大5回/秒で送信します。");
@@ -187,6 +198,19 @@ export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
   navigator.serial?.addEventListener("disconnect",()=>{close();status("USB接続が切れました。実機は自動で通常動作へ戻ります。");});
   buttons();
   return {
+    isActive:()=>active,
+    hasNeckPreview:()=>active && neckPreview,
+    async readReplayProfile() {
+      replayRequests++;
+      try { return await request("profile"); }
+      finally { replayRequests--; }
+    },
+    async stopForProfileChange() {
+      active=false; buttons();
+      try { await request("end"); }
+      catch { /* Device timeout also ends preview. */ }
+      status("実機の目標範囲が変わりました。実機プレビューを開始し直してください。");
+    },
     async stopForAnnouncement() {
       if (!active) return;
       active=false; buttons();
@@ -206,7 +230,7 @@ export function createLiveSerial(getFrame,onProfile=()=>{},onStart=()=>{}) {
     },
     finishUpload() { uploadBusy=false; buttons(); },
     tick(now) {
-      if (!active || sending || now-lastSent<200) return;
+      if (!active || sending || replayRequests || now-lastSent<200) return;
       lastSent=now;
       sending=true;
       sendFrame().then(async()=>{

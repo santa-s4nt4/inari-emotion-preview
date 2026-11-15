@@ -11,9 +11,9 @@
   <link rel="stylesheet" href="../stackchan-face-studio.css?v=1" />
   <link rel="stylesheet" href="../stackchan-face-animation.css?v=1" />
   <link rel="stylesheet" href="../stackchan-audio-studio.css?v=1" />
-  <link rel="stylesheet" href="../stackchan-workspace.css?v=1" />
+  <link rel="stylesheet" href="../stackchan-workspace.css?v=2" />
   <script type="importmap">{"imports":{"three":"../assets/stackchan3d/vendor/three.module.js","three/addons/loaders/GLTFLoader.js":"../assets/stackchan3d/vendor/loaders/GLTFLoader.js","three/addons/controls/OrbitControls.js":"../assets/stackchan3d/vendor/controls/OrbitControls.js"}}</script>
-  <script type="module" src="../src/stackchanPreview.js?v=25"></script>
+  <script type="module" src="../src/stackchanPreview.js?v=26"></script>
 </head>
 <body>
   <header class="topbar">
@@ -28,7 +28,7 @@
 
   <main class="layout workspace-layout">
     <section class="preview-panel" aria-label="Stack-chan 3Dプレビュー">
-      <div class="panel-top"><span>3D / LIVE PREVIEW</span><span id="profileState" class="profile-state">仮のサーボ範囲</span><button id="previewClose" type="button" aria-label="3Dプレビューを隠す">×</button></div>
+      <div class="panel-top"><span>3D / LIVE PREVIEW</span><span id="profileState" class="profile-state">K151デモ機の参考範囲</span><button id="previewClose" type="button" aria-label="3Dプレビューを隠す">×</button></div>
       <div class="scene" id="scene" aria-label="ドラッグで見る角度を変えられる3D Stack-chan">
         <canvas id="sceneCanvas" class="scene-canvas" role="img" aria-label="K151 Stack-chanの3Dモデル。白い外装、立体の狐耳と背面の尻尾"></canvas>
         <p id="sceneLoading" class="scene-loading" role="status">Stack-chanの3Dモデルを読み込み中…</p>
@@ -60,8 +60,7 @@
         <p id="deerDeviceStatus" class="face-status" role="status"></p>
       </section><section class="block editor-block tool-panel" data-tool-panel="motion" hidden>
         <div class="block-heading"><span>MOTION EDITOR</span><h2>首の動き</h2><p>中央の共通タイムラインで顔と首の角度を同時に編集します。到達時間も各コマに表示します。</p></div>
-        <div class="editor-table-wrap"><table class="editor-table"><thead><tr><th>STEP</th><th>時間 ms</th><th>左右 °</th><th>上下 °</th><th>表情</th><th></th></tr></thead><tbody id="editorRows"></tbody></table></div>
-        <div class="editor-actions"><button id="addStep" type="button">＋ ステップ</button><button id="resetEmotion" type="button">元に戻す</button><button id="exportDraft" type="button">首のJSONを書き出す</button><button id="exportCurrentEmote" type="button">このエモートを書き出す</button></div>
+        <div class="editor-actions"><button id="exportDraft" type="button">首のJSONを書き出す</button><button id="exportCurrentEmote" type="button">このエモートを書き出す</button></div>
         <p class="editor-note">選択中の感情だけをJSONに書き出します。実機に適用する前に、実測のサーボ範囲と動きを確認してください。</p>
       </section><section class="block tool-panel" data-tool-panel="jev" hidden>
         <div class="block-heading"><span>JEV CHOICE</span><h2>状況から選ぶ</h2><p>判定だけ既存のサーバー側Jevを使用します。選んだ感情で同じプレビューを再生します。</p></div>
@@ -69,14 +68,17 @@
         <p id="jevStatus" class="jev-status" role="status">GitHub PagesではJev判定を利用できません。ローカル版でお試しください。</p>
         <details id="jevDebug"><summary>Jev判定の詳細</summary><div class="debug-result"><span>SELECTED</span><b id="selectedEmotion">—</b><span>CONFIDENCE</span><b id="confidence">—</b></div><div id="probabilities" class="probabilities"></div></details>
       </section><section class="block calibration tool-panel" data-tool-panel="profile" hidden>
-        <div class="block-heading"><span>MOTOR PROFILE</span><h2>実機の可動範囲</h2><p>サーボから読み出した上下限とゼロ位置を入れると、実機の安全クランプを再計算します。</p></div>
+        <div class="block-heading"><h2>可動範囲と開始姿勢</h2><p>USB接続時は実機が報告する目標範囲を使います。未接続時はK151デモ機の参考範囲で試せます。</p></div>
         <form id="profileForm">
-          <div class="axis-fields"><fieldset><legend>YAW / 左右</legend><label>最小 raw<input name="yawMin" type="number" min="0" max="1023" value="0"></label><label>ゼロ raw<input name="yawZero" type="number" min="0" max="1000" value="460"></label><label>最大 raw<input name="yawMax" type="number" min="0" max="1023" value="1023"></label></fieldset><fieldset><legend>PITCH / 上下</legend><label>最小 raw<input name="pitchMin" type="number" min="0" max="1023" value="0"></label><label>ゼロ raw<input name="pitchZero" type="number" min="0" max="1000" value="620"></label><label>最大 raw<input name="pitchMax" type="number" min="0" max="1023" value="1023"></label></fieldset></div>
-          <label class="checkbox"><input name="measured" type="checkbox"> 上下限を実機から読み取った</label>
-          <button type="submit">可動範囲を適用</button>
+          <div class="axis-fields"><fieldset><legend>プレビューの開始姿勢</legend>
+            <label>左右 ° <input name="yaw" type="number" step="0.1" value="0" required></label>
+            <label>上下 ° <input name="pitch" type="number" step="0.1" value="30" required></label>
+          </fieldset></div>
+          <button type="submit">開始姿勢を適用</button>
         </form>
-        <p id="rangeReadout" class="range-readout"></p><p id="motorEvidence" class="range-readout" role="status">実機未接続。到達時間はファームウェアの設定速度からの概算です。</p><p id="profileError" class="profile-error" role="alert"></p>
-        <p class="profile-note">豊穣は左右±80°、他の感情は左右±30°、上下は10–30°。raw可動域の90%と到着補正用8 rawの余裕を適用します。実測の遅れ・負荷・バックラッシュはプレビューに含まれません。</p>
+        <p id="rangeReadout" class="range-readout"></p><p id="originReadout" class="range-readout"></p>
+        <p id="motorEvidence" class="range-readout" role="status">実機未接続。到達時間は設計上の見積もりです。</p><p id="profileError" class="profile-error" role="alert"></p>
+        <p class="profile-note">JSONの左右0°・上下30°は移動なしです。実機プレビューを再生するたびにその時の姿勢を読み、その回の原点にします。人物追従中は本体が人物目標を使い、実機の可動範囲に収めます。</p>
       </section>
     </aside>
     <section class="face-canvas-panel" aria-label="顔キャンバス">
@@ -87,7 +89,14 @@
           <div class="face-screen-wrap"><canvas id="faceAnimationPreview" width="320" height="240" role="img" aria-label="再生中または編集中の顔アニメーション"></canvas><canvas id="faceSelectionOverlay" width="320" height="240" aria-label="顔の部品をドラッグして移動"></canvas><div class="face-safe-guide" aria-hidden="true"><span>デバッグ表示の境界 y=182</span></div></div>
           <p id="faceAnimationStatus" class="face-status" role="status"></p>
         </div>
-        <div class="face-animation-timeline"><table><thead><tr><th>コマ</th><th>顔と首の時間 ms</th><th>左右 °</th><th>上下 °</th><th>到達</th><th>選択・順序</th></tr></thead><tbody id="faceAnimationRows"></tbody></table></div>
+        <fieldset class="motion-sliders"><legend>選択コマの首角度</legend>
+          <label>左右 <input id="stepyawSlider" type="range" step="0.1"><output id="stepyawValue" for="stepyawSlider"></output></label>
+          <label>上下 <input id="steppitchSlider" type="range" step="0.1"><output id="steppitchValue" for="steppitchSlider"></output></label>
+        </fieldset>
+        <p class="face-note">到達時間は設計上の見積もりです。本体では実測の到着と150 msの安定確認により、コマの時間が延びることがあります。</p>
+        <p id="adjustmentReadout" class="face-status" role="status"></p>
+        <p id="returnReadout" class="face-note"></p>
+        <div class="face-animation-timeline"><table><thead><tr><th>コマ</th><th>顔と首の時間 ms</th><th>左右 °</th><th>上下 °</th><th>必要 / コマ時間</th><th>選択・順序</th></tr></thead><tbody id="faceAnimationRows"></tbody></table></div>
         <div class="face-actions"><button id="faceAnimationAdd" type="button">＋ コマを追加</button><button id="faceAnimationDuplicate" type="button">選択コマを複製</button><button id="faceAnimationDelete" type="button">選択コマを削除</button></div>
 </section>
     <aside class="face-inspector" aria-label="顔パーツ設定">
